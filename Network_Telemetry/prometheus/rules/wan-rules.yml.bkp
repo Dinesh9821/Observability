@@ -1,0 +1,61 @@
+groups:
+  - name: wan_utilization
+    interval: 60s
+    rules:
+      # group_left now carries region, country and priority from the capacity
+      # metric onto the derived series, so WAN panels can filter by region
+      # exactly like device panels do.
+      - record: meraki_uplink_util_out_percent
+        expr: |
+          100 * meraki_uplink_sent_bytes_per_second * 8
+            / on (serial, uplink)
+              group_left (circuit_id, provider, site_id, region, country, priority)
+              meraki_uplink_capacity_bits_per_second
+
+      - record: meraki_uplink_util_in_percent
+        expr: |
+          100 * meraki_uplink_received_bytes_per_second * 8
+            / on (serial, uplink)
+              group_left (circuit_id, provider, site_id, region, country, priority)
+              meraki_uplink_capacity_bits_per_second
+
+      # A full-duplex circuit is busy when EITHER direction is busy.
+      # Averaging the two understates congestion by up to half.
+      - record: meraki_uplink_util_percent
+        expr: |
+          max without (direction) (
+            label_replace(meraki_uplink_util_in_percent,  "direction", "in",  "", "")
+            or
+            label_replace(meraki_uplink_util_out_percent, "direction", "out", "", "")
+          )
+
+      # Regional rollups. Pre-aggregating here means the WAN dashboard reads
+      # three series instead of aggregating thousands on every page load.
+      - record: meraki_uplink_util_percent:avg:by_region
+        expr: avg by (region) (meraki_uplink_util_percent)
+      - record: meraki_uplink_util_percent:max:by_region
+        expr: max by (region) (meraki_uplink_util_percent)
+      - record: meraki_uplink_util_percent:avg:by_country
+        expr: avg by (region, country) (meraki_uplink_util_percent)
+      - record: meraki_uplink_util_percent:max:by_site
+        expr: max by (region, country, site_id) (meraki_uplink_util_percent)
+
+  - name: site_health
+    interval: 60s
+    rules:
+      # Percentage of devices online at a site -- the headline health number.
+      - record: meraki_site_health_percent
+        expr: |
+          100 * meraki_site_devices_online
+            / on (org_id, site_id) group_left meraki_site_devices_total
+
+      - record: meraki_site_devices_online:by_region
+        expr: sum by (region) (meraki_site_devices_online)
+      - record: meraki_site_devices_total:by_region
+        expr: sum by (region) (meraki_site_devices_total)
+
+      # Health split by device class, for the switch/AP tiles.
+      - record: meraki_devices_online:by_type
+        expr: sum by (region, country, site_id, product_type) (meraki_device_up == 1)
+      - record: meraki_devices_total:by_type
+        expr: count by (region, country, site_id, product_type) (meraki_device_up)

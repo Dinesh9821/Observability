@@ -1,0 +1,68 @@
+# Exporter health.
+#
+# WHY THIS EXISTS
+#   The Meraki API key was rejected for 30 hours while the exporter reported
+#   itself healthy, the container stayed Up, and Prometheus showed the target
+#   as up. Nothing was wrong with any component -- there was simply no data.
+#   Liveness checks cannot catch that. These rules can.
+
+groups:
+  - name: exporter_health
+    interval: 60s
+    rules:
+      # Errors with ZERO successes is the signature of a credential problem
+      # rather than a transient one. A flaky network produces both.
+      - alert: MerakiApiAuthFailure
+        expr: |
+          sum by (org_id) (rate(meraki_api_requests_total{outcome!="success"}[10m])) > 0
+          and
+          sum by (org_id) (rate(meraki_api_requests_total{outcome="success"}[10m])) == 0
+        for: 10m
+        labels: {severity: critical, category: platform}
+        annotations:
+          summary: "Meraki API failing for org {{ $labels.org_id }}"
+          description: "Errors with no successes for 10 minutes. Check the API key first."
+
+      - alert: MerakiExporterStale
+        expr: time() - meraki_last_successful_collection_timestamp_seconds > 900
+        for: 5m
+        labels: {severity: critical, category: platform}
+        annotations:
+          summary: "No successful Meraki collection for org {{ $labels.org_id }} in 15 minutes"
+
+      - alert: VmanageExporterStale
+        expr: time() - vmanage_last_successful_collection_timestamp_seconds > 600
+        for: 5m
+        labels: {severity: critical, category: platform}
+        annotations:
+          summary: "No successful vManage collection in 10 minutes"
+
+      # The check that actually matters: is data arriving at all. Every other
+      # alert here confirms a component is running; this one confirms the
+      # pipeline is producing.
+      - alert: NoDeviceDataFromSource
+        expr: |
+          count by (source) (device_info) == 0
+          or absent(device_info{source="meraki"}) == 1
+          or absent(device_info{source="vmanage"}) == 1
+        for: 15m
+        labels: {severity: critical, category: platform}
+        annotations:
+          summary: "No device data from one of the collection sources"
+          description: "Meraki or Viptela has stopped contributing devices entirely."
+
+      - alert: MerakiRateLimited
+        expr: increase(meraki_rate_limited_total[15m]) > 0
+        labels: {severity: warning, category: platform}
+        annotations:
+          summary: "Meraki rate limit hit for org {{ $labels.org_id }}"
+          description: "The 10 req/s limit is per organisation. Check for other API consumers."
+
+      - alert: VmanageEndpointUnavailable
+        expr: |
+          max by (signal) (vmanage_endpoint_available) == 0
+        for: 30m
+        labels: {severity: warning, category: platform}
+        annotations:
+          summary: "No working vManage endpoint for {{ $labels.signal }}"
+          description: "Entity names differ between versions; the candidate list may need widening."

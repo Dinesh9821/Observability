@@ -1,0 +1,2184 @@
+{
+  "uid": "complete-observability",
+  "title": "Complete Observability Dashboard",
+  "description": "Region > Country > Site > Device. Shows estate-wide rollups until a device is selected. site_id is the first two tokens of the hostname (AT-5789-ASD01 -> AT-5789); region and country come from the site register.",
+  "tags": [
+    "observability",
+    "meraki",
+    "wan"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h"
+    ]
+  },
+  "fiscalYearStartMonth": 0,
+  "links": [],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "region",
+        "label": "Region",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(meraki_site_devices_total, region)",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(meraki_site_devices_total, region)",
+          "refId": "var-region"
+        },
+        "multi": false,
+        "includeAll": true,
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "hide": 0,
+        "options": [],
+        "allValue": ".*"
+      },
+      {
+        "name": "country",
+        "label": "Country",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(meraki_site_devices_total{region=~\"$region\"}, country)",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(meraki_site_devices_total{region=~\"$region\"}, country)",
+          "refId": "var-country"
+        },
+        "multi": false,
+        "includeAll": true,
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "hide": 0,
+        "options": [],
+        "allValue": ".*"
+      },
+      {
+        "name": "site",
+        "label": "Site ID",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(meraki_site_devices_total{region=~\"$region\", country=~\"$country\"}, site_id)",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(meraki_site_devices_total{region=~\"$region\", country=~\"$country\"}, site_id)",
+          "refId": "var-site"
+        },
+        "multi": false,
+        "includeAll": true,
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "hide": 0,
+        "options": [],
+        "allValue": ".*"
+      },
+      {
+        "name": "device",
+        "label": "Device",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(meraki_device_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}, device_name)",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(meraki_device_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}, device_name)",
+          "refId": "var-device"
+        },
+        "multi": false,
+        "includeAll": true,
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "hide": 0,
+        "options": [],
+        "allValue": ".*"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 100,
+      "type": "row",
+      "title": "Estate overview",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "panels": [],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
+    },
+    {
+      "id": 1,
+      "type": "gauge",
+      "title": "Site Health",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Percentage of devices online across the selected scope.",
+      "gridPos": {
+        "h": 7,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 80
+              },
+              {
+                "color": "#EAB839",
+                "value": 95
+              },
+              {
+                "color": "green",
+                "value": 99
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "minVizWidth": 75,
+        "minVizHeight": 75,
+        "sizing": "auto",
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "avg(meraki_site_health_percent{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"})",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "health"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "gauge",
+      "title": "Avg WAN Utilisation",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 7,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "#EAB839",
+                "value": 60
+              },
+              {
+                "color": "orange",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 95
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "minVizWidth": 75,
+        "minVizHeight": 75,
+        "sizing": "auto",
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "avg(meraki_uplink_util_percent{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"})",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "avg"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "gauge",
+      "title": "Peak WAN Utilisation",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 7,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "#EAB839",
+                "value": 60
+              },
+              {
+                "color": "orange",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 95
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "minVizWidth": 75,
+        "minVizHeight": 75,
+        "sizing": "auto",
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max(meraki_uplink_util_percent{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"})",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "peak"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Sites",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 3,
+        "x": 12,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 32
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "count(count by (site_id) (meraki_site_devices_total{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}))",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Devices",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 3,
+        "x": 15,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 32
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(meraki_site_devices_total{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"})",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Devices Down",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 3,
+        "x": 18,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 32
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(meraki_site_devices_total{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}) - sum(meraki_site_devices_online{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"})",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "WAN Circuits",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 3,
+        "x": 21,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 32
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "count(meraki_uplink_util_percent{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}) or vector(0)",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 101,
+      "type": "row",
+      "title": "Device class health",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "panels": [],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
+    },
+    {
+      "id": 10,
+      "type": "bargauge",
+      "title": "Switch Health",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 80
+              },
+              {
+                "color": "#EAB839",
+                "value": 95
+              },
+              {
+                "color": "green",
+                "value": 99
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "valueMode": "color",
+        "namePlacement": "left",
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "maxVizHeight": 300,
+        "sizing": "auto",
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "100 * sum(meraki_devices_online:by_type{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", product_type=\"switch\"}) / sum(meraki_devices_total:by_type{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", product_type=\"switch\"})",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "switches online %"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "bargauge",
+      "title": "Access Point Health",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 80
+              },
+              {
+                "color": "#EAB839",
+                "value": 95
+              },
+              {
+                "color": "green",
+                "value": 99
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "valueMode": "color",
+        "namePlacement": "left",
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "maxVizHeight": 300,
+        "sizing": "auto",
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "100 * sum(meraki_devices_online:by_type{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", product_type=\"wireless\"}) / sum(meraki_devices_total:by_type{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", product_type=\"wireless\"})",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "APs online %"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "bargauge",
+      "title": "Appliance Health",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 12,
+        "y": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 80
+              },
+              {
+                "color": "#EAB839",
+                "value": 95
+              },
+              {
+                "color": "green",
+                "value": 99
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "valueMode": "color",
+        "namePlacement": "left",
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "maxVizHeight": 300,
+        "sizing": "auto",
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "100 * sum(meraki_devices_online:by_type{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", product_type=\"appliance\"}) / sum(meraki_devices_total:by_type{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", product_type=\"appliance\"})",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "appliances online %"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "piechart",
+      "title": "Device mix",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "pieType": "donut",
+        "displayLabels": [
+          "value"
+        ],
+        "legend": {
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": true,
+          "values": [
+            "value"
+          ]
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (product_type) (meraki_site_devices_by_role{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"})",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{product_type}}"
+        }
+      ]
+    },
+    {
+      "id": 102,
+      "type": "row",
+      "title": "WAN links in scope",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
+      "panels": [],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
+    },
+    {
+      "id": 20,
+      "type": "bargauge",
+      "title": "WAN Link Utilisation by Circuit",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Against contracted CIR from capacity.yml, not port speed. 60-second averages.",
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "#EAB839",
+                "value": 60
+              },
+              {
+                "color": "orange",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 95
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "valueMode": "color",
+        "namePlacement": "left",
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "maxVizHeight": 300,
+        "sizing": "auto",
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sort_desc(meraki_uplink_util_percent{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"})",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{site_id}} \u00b7 {{uplink}}"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "WAN Utilisation over time",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 16,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "pointSize": 5,
+            "spanNulls": 900000,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "axisBorderShow": false,
+            "axisSoftMin": 0,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "barAlignment": 0,
+            "insertNulls": false,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 95
+              }
+            ]
+          },
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "meraki_uplink_util_percent{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{site_id}} \u00b7 {{uplink}}"
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "type": "table",
+      "title": "Sites in scope",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 25
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Health %"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 100
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "gradient",
+                  "valueDisplayMode": "color"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 80
+                    },
+                    {
+                      "color": "#EAB839",
+                      "value": 95
+                    },
+                    {
+                      "color": "green",
+                      "value": 99
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 220
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        },
+        "sortBy": [
+          {
+            "desc": false,
+            "displayName": "Health %"
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "meraki_site_health_percent{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}",
+          "refId": "A",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "job": true,
+              "instance": true,
+              "org": true,
+              "org_id": true
+            },
+            "renameByName": {
+              "site_id": "Site",
+              "region": "Region",
+              "country": "Country",
+              "priority": "Priority",
+              "Value": "Health %"
+            },
+            "indexByName": {
+              "region": 0,
+              "country": 1,
+              "site_id": 2,
+              "priority": 3,
+              "Value": 4
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 103,
+      "type": "row",
+      "title": "Device detail \u2014 $device",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 34
+      },
+      "panels": [],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
+    },
+    {
+      "id": 40,
+      "type": "gauge",
+      "title": "CPU Load",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "ACCESS POINTS ONLY. Meraki exposes no CPU metric for MS switches or MX appliances. This is a load average, not a percentage.",
+      "gridPos": {
+        "h": 7,
+        "w": 4,
+        "x": 0,
+        "y": 35
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "max": 400,
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 200
+              },
+              {
+                "color": "red",
+                "value": 320
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "minVizWidth": 75,
+        "minVizHeight": 75,
+        "sizing": "auto",
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "meraki_device_cpu_load5{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", device_name=~\"$device\"}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{device_name}}"
+        }
+      ]
+    },
+    {
+      "id": 41,
+      "type": "gauge",
+      "title": "Memory Used",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Available for every Meraki device type.",
+      "gridPos": {
+        "h": 7,
+        "w": 4,
+        "x": 4,
+        "y": 35
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "#EAB839",
+                "value": 60
+              },
+              {
+                "color": "orange",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 95
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "minVizWidth": 75,
+        "minVizHeight": 75,
+        "sizing": "auto",
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "meraki_device_memory_used_percent{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", device_name=~\"$device\"}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{device_name}}"
+        }
+      ]
+    },
+    {
+      "id": 42,
+      "type": "stat",
+      "title": "Status",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 4,
+        "x": 8,
+        "y": 35
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Offline",
+                  "color": "red",
+                  "index": 0
+                },
+                "0.5": {
+                  "text": "Alerting",
+                  "color": "orange",
+                  "index": 1
+                },
+                "1": {
+                  "text": "Online",
+                  "color": "green",
+                  "index": 2
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.5
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "meraki_device_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", device_name=~\"$device\"}",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 43,
+      "type": "stat",
+      "title": "Ports Connected",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 4,
+        "x": 12,
+        "y": 35
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "meraki_switch_ports_connected{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", device_name=~\"$device\"}",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 44,
+      "type": "stat",
+      "title": "Port Errors",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 4,
+        "x": 16,
+        "y": 35
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "meraki_switch_ports_with_errors{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", device_name=~\"$device\"}",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 45,
+      "type": "stat",
+      "title": "Clients",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 4,
+        "x": 20,
+        "y": 35
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "meraki_switch_client_count{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", device_name=~\"$device\"}",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 50,
+      "type": "timeseries",
+      "title": "Memory \u2014 $device",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 42
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 16,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "pointSize": 5,
+            "spanNulls": 900000,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "axisBorderShow": false,
+            "axisSoftMin": 0,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "barAlignment": 0,
+            "insertNulls": false,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 85
+              }
+            ]
+          },
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "meraki_device_memory_used_percent{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", device_name=~\"$device\"}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{device_name}}"
+        }
+      ]
+    },
+    {
+      "id": 51,
+      "type": "timeseries",
+      "title": "CPU load \u2014 $device",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Empty for switches and appliances by design \u2014 see the CPU gauge note.",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 42
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 16,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "pointSize": 5,
+            "spanNulls": 900000,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "axisBorderShow": false,
+            "axisSoftMin": 0,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "barAlignment": 0,
+            "insertNulls": false,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "meraki_device_cpu_load5{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", device_name=~\"$device\"}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{device_name}}"
+        }
+      ]
+    },
+    {
+      "id": 52,
+      "type": "state-timeline",
+      "title": "Device availability in scope",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 42
+      },
+      "description": "Polled every 5 minutes, matching Meraki's own refresh. Shorter outages are not visible.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 0,
+            "fillOpacity": 85,
+            "spanNulls": false,
+            "insertNulls": false,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.5
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Offline",
+                  "color": "red",
+                  "index": 0
+                },
+                "0.5": {
+                  "text": "Alerting",
+                  "color": "orange",
+                  "index": 1
+                },
+                "1": {
+                  "text": "Online",
+                  "color": "green",
+                  "index": 2
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "mergeValues": true,
+        "showValue": "never",
+        "alignValue": "center",
+        "rowHeight": 0.85,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "meraki_device_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{device_name}}"
+        }
+      ]
+    }
+  ]
+}

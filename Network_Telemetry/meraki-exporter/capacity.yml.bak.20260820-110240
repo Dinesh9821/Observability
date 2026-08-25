@@ -1,0 +1,67 @@
+circuits:
+  - serial: Q2NY-8UNS-4FK4
+    uplink: wan1
+    circuit_id: CHANGE-ME
+    provider: CHANGE-ME
+    site_id: FR-0031-ALENCON
+    capacity_bps: 100000000
+  - serial: Q2NY-9Q3K-7V25
+    uplink: wan2
+    circuit_id: CHANGE-ME
+    provider: CHANGE-ME
+    site_id: ES-5704-Almeria
+    capacity_bps: 100000000
+  - serial: Q2NY-9QEU-ZXN4
+    uplink: wan1
+    circuit_id: CHANGE-ME
+    provider: CHANGE-ME
+    site_id: PL-5646-Warszawa
+    capacity_bps: 100000000
+  - serial: Q2NY-AVNC-Z4X3
+    uplink: wan1
+    circuit_id: CHANGE-ME
+    provider: CHANGE-ME
+    site_id: ES-5690-Ciudad-Real
+    capacity_bps: 100000000
+  - serial: Q2NY-B3N7-2ZCV
+    uplink: wan1
+    circuit_id: CHANGE-ME
+    provider: CHANGE-ME
+    site_id: ES-7373-Bergondo
+    capacity_bps: 100000000
+  - serial: Q2NY-B3VU-DEPS
+    uplink: cellular
+    circuit_id: CHANGE-ME
+    provider: CHANGE-ME
+    site_id: ES-1456-Palma-de-Mallorca
+    capacity_bps: 100000000
+  - serial: Q2NY-B3VU-DEPS
+    uplink: wan1
+    circuit_id: CHANGE-ME
+    provider: CHANGE-ME
+    site_id: ES-1456-Palma-de-Mallorca
+    capacity_bps: 100000000
+  - serial: Q2NY-CHKK-GLLK
+    uplink: wan1
+    circuit_id: CHANGE-ME
+    provider: CHANGE-ME
+    site_id: FR-0030-HERICOURT
+    capacity_bps: 100000000
+  - serial: Q2NY-L3NY-L6DM
+    uplink: wan1
+    circuit_id: CHANGE-ME
+    provider: CHANGE-ME
+    site_id: ES-7329-San-Vicente-de-Rspeig
+    capacity_bps: 100000000
+  - serial: Q2NY-SMWT-5R64
+    uplink: wan1
+    circuit_id: CHANGE-ME
+    provider: CHANGE-ME
+    site_id: Dirk-V--TEST
+    capacity_bps: 100000000
+  - serial: Q2SW-3CQY-AVYE
+    uplink: wan1
+    circuit_id: CHANGE-ME
+    provider: CHANGE-ME
+    site_id: FR-3266-Roissy-FR
+    capacity_bps: 100000000

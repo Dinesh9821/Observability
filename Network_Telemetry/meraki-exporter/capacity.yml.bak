@@ -1,0 +1,107 @@
+# Contracted circuit bandwidth (CIR) per Meraki uplink.
+# Organisation: Carrier-EMEA (793196484370628661)
+# Generated from live discovery on 2026-08-20 -- 11 uplinks found.
+#
+# HOW TO FILL THIS IN
+#   capacity_bps  MUST be the CONTRACTED bandwidth from the circuit order,
+#                 not the physical port speed. A 1 Gbps WAN port terminating
+#                 a 50 Mbps service is saturated at 50 Mbps -- computing
+#                 against port speed reports 5% while packets are dropping.
+#   circuit_id    Your carrier's circuit reference. Used for alert routing
+#                 and for correlating with ITSM tickets later.
+#   site_id       Match your Smart NetOps Hub scope convention so the Hub's
+#                 region/country/site dropdowns can filter on it.
+#
+# Any uplink you delete or leave without capacity_bps still reports raw
+# throughput -- it just produces no utilisation percentage. That is
+# deliberate: a visible gap beats a plausible-looking wrong number.
+#
+# Common values:
+#    10000000 =  10 Mbps        100000000 = 100 Mbps
+#    20000000 =  20 Mbps        200000000 = 200 Mbps
+#    50000000 =  50 Mbps       1000000000 =   1 Gbps
+
+circuits:
+  - serial: Q2NY-8UNS-4FK4
+    uplink: wan1
+    circuit_id: CHANGE-ME
+    provider: CHANGE-ME
+    site_id: CHANGE-ME
+    capacity_bps: 100000000
+
+  - serial: Q2NY-9Q3K-7V25
+    uplink: wan2
+    circuit_id: CHANGE-ME
+    provider: CHANGE-ME
+    site_id: CHANGE-ME
+    capacity_bps: 100000000
+
+  - serial: Q2NY-9QEU-ZXN4
+    uplink: wan1
+    circuit_id: CHANGE-ME
+    provider: CHANGE-ME
+    site_id: CHANGE-ME
+    capacity_bps: 100000000
+
+  - serial: Q2NY-AVNC-Z4X3
+    uplink: wan1
+    circuit_id: CHANGE-ME
+    provider: CHANGE-ME
+    site_id: CHANGE-ME
+    capacity_bps: 100000000
+
+  - serial: Q2NY-B3N7-2ZCV
+    uplink: wan1
+    circuit_id: CHANGE-ME
+    provider: CHANGE-ME
+    site_id: CHANGE-ME
+    capacity_bps: 100000000
+
+  - serial: Q2NY-B3VU-DEPS
+    uplink: wan1
+    circuit_id: CHANGE-ME
+    provider: CHANGE-ME
+    site_id: CHANGE-ME
+    capacity_bps: 100000000
+
+  # LTE backup on the same appliance as the entry above.
+  # Cellular has no contracted CIR -- it is usually a data-volume plan with
+  # variable throughput. Either delete this entry (throughput still reports,
+  # utilisation simply will not), or set capacity_bps to the plan's throughput
+  # cap and treat the resulting percentage as indicative only.
+  # What actually matters on cellular is that it is carrying traffic AT ALL,
+  # since that implies the primary has failed.
+  - serial: Q2NY-B3VU-DEPS
+    uplink: cellular
+    circuit_id: CHANGE-ME
+    provider: CHANGE-ME
+    site_id: CHANGE-ME
+    capacity_bps: 50000000
+
+  - serial: Q2NY-CHKK-GLLK
+    uplink: wan1
+    circuit_id: CHANGE-ME
+    provider: CHANGE-ME
+    site_id: CHANGE-ME
+    capacity_bps: 100000000
+
+  - serial: Q2NY-L3NY-L6DM
+    uplink: wan1
+    circuit_id: CHANGE-ME
+    provider: CHANGE-ME
+    site_id: CHANGE-ME
+    capacity_bps: 100000000
+
+  - serial: Q2NY-SMWT-5R64
+    uplink: wan1
+    circuit_id: CHANGE-ME
+    provider: CHANGE-ME
+    site_id: CHANGE-ME
+    capacity_bps: 100000000
+
+  - serial: Q2SW-3CQY-AVYE
+    uplink: wan1
+    circuit_id: CHANGE-ME
+    provider: CHANGE-ME
+    site_id: CHANGE-ME
+    capacity_bps: 100000000

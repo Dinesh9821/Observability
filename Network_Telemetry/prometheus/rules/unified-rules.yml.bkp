@@ -1,0 +1,224 @@
+# Unified view across Meraki and Viptela.
+#
+# THE PROBLEM THIS SOLVES
+#   Two collectors produce two metric families with different label names.
+#   A dashboard querying meraki_* cannot see Viptela devices and vice versa.
+#   These rules normalise both into one set of names with one label schema,
+#   so every dashboard queries a single metric and gets the whole estate.
+#
+# COMMON LABEL SCHEMA
+#   region, country, site_id, priority, device, link, source
+#   `source` is preserved deliberately -- the two estates are NOT measured
+#   identically and the dashboards must be able to say so.
+
+groups:
+  # =======================================================================
+  # WAN link utilisation
+  # =======================================================================
+  - name: unified_wan
+    interval: 60s
+    rules:
+      # --- Meraki: against CONTRACTED CIR --------------------------------
+      - record: wan_link_utilization_percent
+        expr: |
+          max by (region, country, site_id, priority, device, link) (
+            label_replace(
+              label_replace(meraki_uplink_util_percent,
+                            "device", "$1", "network", "(.*)"),
+              "link", "$1", "uplink", "(.*)")
+          )
+        labels:
+          source: meraki
+          basis: cir
+
+      # --- Viptela: against PORT SPEED -----------------------------------
+      # vManage reports negotiated interface speed, not the contracted rate.
+      # A 1 Gbps port on a 100 Mbps circuit reads ten times low. The `basis`
+      # label carries that caveat into every dashboard and alert rather than
+      # leaving it in a comment nobody reads.
+      # WAN interfaces are selected by vpn_id="0", the SD-WAN transport VPN,
+      # NOT by the color label. cEdge interface state does not reliably carry
+      # a color, so filtering on it silently excludes the entire fleet.
+      #
+      # rx and tx combined in ONE rule. Two separate rules would emit the
+      # same series with the same labels at the same timestamp, which
+      # Prometheus rejects as a duplicate sample.
+      # max, not avg: a full-duplex link is busy when EITHER direction is
+      # busy, and averaging understates congestion by up to half.
+      - record: wan_link_utilization_percent
+        expr: |
+          max by (region, country, site_id, priority, device, link) (
+            label_replace(
+              label_replace(
+                100 * vmanage_interface_rx_bits_per_second{vpn_id="0"}
+                  / (vmanage_interface_speed_bits_per_second > 0),
+                "device", "$1", "hostname", "(.*)"),
+              "link", "$1", "ifname", "(.*)")
+            or
+            label_replace(
+              label_replace(
+                100 * vmanage_interface_tx_bits_per_second{vpn_id="0"}
+                  / (vmanage_interface_speed_bits_per_second > 0),
+                "device", "$1", "hostname", "(.*)"),
+              "link", "$1", "ifname", "(.*)")
+          )
+        labels:
+          source: vmanage
+          basis: port_speed
+
+      # --- throughput in bits, no CIR needed -----------------------------
+      # Always correct regardless of whether a CIR is known, which makes it
+      # the honest fallback when utilisation is unavailable.
+      - record: wan_link_rx_bits_per_second
+        expr: |
+          max by (region, country, site_id, priority, device, link) (
+            label_replace(
+              label_replace(meraki_uplink_received_bytes_per_second * 8,
+                            "device", "$1", "network", "(.*)"),
+              "link", "$1", "uplink", "(.*)")
+          )
+        labels:
+          source: meraki
+      - record: wan_link_rx_bits_per_second
+        expr: |
+          max by (region, country, site_id, priority, device, link) (
+            label_replace(
+              label_replace(vmanage_interface_rx_bits_per_second{vpn_id="0"},
+                            "device", "$1", "hostname", "(.*)"),
+              "link", "$1", "ifname", "(.*)")
+          )
+        labels:
+          source: vmanage
+
+      - record: wan_link_tx_bits_per_second
+        expr: |
+          max by (region, country, site_id, priority, device, link) (
+            label_replace(
+              label_replace(meraki_uplink_sent_bytes_per_second * 8,
+                            "device", "$1", "network", "(.*)"),
+              "link", "$1", "uplink", "(.*)")
+          )
+        labels:
+          source: meraki
+      - record: wan_link_tx_bits_per_second
+        expr: |
+          max by (region, country, site_id, priority, device, link) (
+            label_replace(
+              label_replace(vmanage_interface_tx_bits_per_second{vpn_id="0"},
+                            "device", "$1", "hostname", "(.*)"),
+              "link", "$1", "ifname", "(.*)")
+          )
+        labels:
+          source: vmanage
+
+      # --- link up/down --------------------------------------------------
+      - record: wan_link_up
+        expr: |
+          max by (region, country, site_id, priority, device, link) (
+            label_replace(
+              label_replace(meraki_uplink_status,
+                            "device", "$1", "network", "(.*)"),
+              "link", "$1", "uplink", "(.*)")
+          )
+        labels:
+          source: meraki
+      - record: wan_link_up
+        expr: |
+          max by (region, country, site_id, priority, device, link) (
+            label_replace(
+              label_replace(vmanage_interface_oper_up{vpn_id="0"},
+                            "device", "$1", "hostname", "(.*)"),
+              "link", "$1", "ifname", "(.*)")
+          )
+        labels:
+          source: vmanage
+
+      # --- rollups -------------------------------------------------------
+      - record: wan_link_utilization_percent:avg:by_region
+        expr: avg by (region, source) (wan_link_utilization_percent)
+      - record: wan_link_utilization_percent:max:by_region
+        expr: max by (region, source) (wan_link_utilization_percent)
+      - record: wan_link_utilization_percent:max:by_site
+        expr: max by (region, country, site_id, source) (wan_link_utilization_percent)
+      - record: wan_link_utilization_percent:avg:by_country
+        expr: avg by (region, country, source) (wan_link_utilization_percent)
+
+  # =======================================================================
+  # Devices and sites
+  # =======================================================================
+  - name: unified_devices
+    interval: 60s
+    rules:
+      # Controllers (vSmart, vBond, vManage) have no site and would otherwise
+      # distort every site-level count.
+      - record: device_status
+        expr: |
+          label_replace(meraki_device_up, "device", "$1", "device_name", "(.*)")
+        labels:
+          source: meraki
+      - record: device_status
+        expr: |
+          label_replace(vmanage_device_reachable{site_id!="unknown"},
+                        "device", "$1", "hostname", "(.*)")
+        labels:
+          source: vmanage
+
+      - record: site_devices_total
+        expr: meraki_site_devices_total
+        labels:
+          source: meraki
+      - record: site_devices_total
+        expr: vmanage_site_devices_total{site_id!="unknown"}
+        labels:
+          source: vmanage
+
+      - record: site_devices_up
+        expr: meraki_site_devices_online
+        labels:
+          source: meraki
+      - record: site_devices_up
+        expr: vmanage_site_devices_reachable{site_id!="unknown"}
+        labels:
+          source: vmanage
+
+      # Estate-wide, both sources combined. This is what the headline gauge
+      # reads -- one number covering everything.
+      - record: site_devices_total:all
+        expr: sum by (region, country, site_id, priority) (site_devices_total)
+      - record: site_devices_up:all
+        expr: sum by (region, country, site_id, priority) (site_devices_up)
+      - record: site_health_percent
+        expr: |
+          100 * site_devices_up:all
+            / (site_devices_total:all > 0)
+
+  # =======================================================================
+  # SD-WAN overlay rollups
+  # =======================================================================
+  - name: unified_overlay
+    interval: 60s
+    rules:
+      - record: overlay_sessions_up
+        expr: sum by (region, country, site_id) (vmanage_bfd_sessions_up)
+        labels:
+          protocol: bfd
+      - record: overlay_sessions_total
+        expr: sum by (region, country, site_id) (vmanage_bfd_sessions_total)
+        labels:
+          protocol: bfd
+      - record: overlay_sessions_up
+        expr: sum by (region, country, site_id) (vmanage_omp_peers_up{site_id!="unknown"})
+        labels:
+          protocol: omp
+      - record: overlay_sessions_total
+        expr: sum by (region, country, site_id) (vmanage_omp_peers_total{site_id!="unknown"})
+        labels:
+          protocol: omp
+      - record: overlay_sessions_up
+        expr: sum by (region, country, site_id) (vmanage_bgp_neighbors_up)
+        labels:
+          protocol: bgp
+      - record: overlay_sessions_total
+        expr: sum by (region, country, site_id) (vmanage_bgp_neighbors_total)
+        labels:
+          protocol: bgp
