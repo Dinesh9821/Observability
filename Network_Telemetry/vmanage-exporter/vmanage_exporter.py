@@ -363,10 +363,11 @@ def device_role(hostname):
     return "unknown"
 
 
-def device_labels(hostname, system_ip, dtype, model):
+def device_labels(hostname, system_ip, dtype, model, count_unparsed=True):
     site_id = site_id_from_hostname(hostname)
     if site_id is None:
-        hostname_unparsed.inc()
+        if count_unparsed:
+            hostname_unparsed.inc()
         site_id, country, region, priority = "unknown", "unknown", "unknown", "P4"
     else:
         country, region, priority = resolve_site(site_id)
@@ -376,6 +377,81 @@ def device_labels(hostname, system_ip, dtype, model):
                 device_type=dtype or "unknown",
                 device_model=model or "unknown",
                 device_role=device_role(hostname))
+
+
+def _meta_candidates(value):
+    """Keys that might identify a device in the /dataservice/device map."""
+    if value is None:
+        return []
+    text = str(value).strip()
+    if not text:
+        return []
+    out = [text]
+    if "/" in text:
+        out.append(text.split("/", 1)[0])
+    return out
+
+
+def state_row_lookup_keys(row):
+    """vManage bulk-state rows name the device differently by version."""
+    keys = []
+    for field in (
+        "vdevice-name",
+        "vdevice-host-name",
+        "host-name",
+        "hostName",
+        "system-ip",
+        "systemIp",
+        "local-system-ip",
+        "deviceId",
+        "vdevice-id",
+        "uuid",
+    ):
+        keys.extend(_meta_candidates(row.get(field)))
+    return keys
+
+
+def lookup_device(row, meta):
+    """Return device labels from /device, or None if the row matches nothing."""
+    for key in state_row_lookup_keys(row):
+        if key in meta:
+            return meta[key]
+    return None
+
+
+def synthesize_device_labels(row):
+    """Always-valid labels from the bulk-state row itself.
+
+    Dropping unmatched interface rows is what left WAN at 18 vSmart series
+    while the fabric edges were sitting in the Interface table unused.
+    """
+    host = (
+        row.get("vdevice-host-name")
+        or row.get("host-name")
+        or row.get("hostName")
+        or row.get("vdevice-name")
+        or "unknown"
+    )
+    sysip = (
+        row.get("system-ip")
+        or row.get("systemIp")
+        or row.get("local-system-ip")
+        or row.get("deviceId")
+        or row.get("vdevice-id")
+        or row.get("vdevice-name")
+        or "unknown"
+    )
+    dtype = row.get("device-type") or row.get("personality") or row.get("vdevice-type")
+    model = row.get("device-model") or row.get("model")
+    return device_labels(str(host), str(sysip), dtype, model, count_unparsed=False)
+
+
+def labels_for_state_row(row, meta):
+    """Map a bulk-state row to device labels; never returns None."""
+    found = lookup_device(row, meta)
+    if found:
+        return found, False
+    return synthesize_device_labels(row), True
 
 
 # ---------------------------------------------------------------------------
@@ -626,9 +702,7 @@ def _collect_neighbor_table(vm, signal, candidates, lookup, up_metric, total_met
     data, path = first_working(vm, signal, candidates)
     tot, ok = {}, {}
     for r in data:
-        lb = lookup(r)
-        if not lb:
-            continue
+        lb, _synth = lookup(r)
         labels = dict(lb, **extra(r))
         up = 1.0 if is_up(r) else 0.0
         up_metric.labels(**labels).set(up)
@@ -700,36 +774,16 @@ def collect(vm):
         site_routers_total.labels(**sl).set(site_rtr.get(key, 0))
 
     def lookup(row):
-        """Map a bulk-state row back to the device label set.
-
-        vManage entity names differ by version (vdevice-name vs host-name vs
-        deviceId). If this returns None the interface is dropped and WAN
-        panels go empty even though /dataservice/device listed the router.
-        """
-        for key in (
-            row.get("vdevice-name"),
-            row.get("vdevice-host-name"),
-            row.get("host-name"),
-            row.get("hostName"),
-            row.get("system-ip"),
-            row.get("systemIp"),
-            row.get("local-system-ip"),
-            row.get("deviceId"),
-            row.get("vdevice-id"),
-            row.get("uuid"),
-        ):
-            if key and key in meta:
-                return meta[key]
-        return None
+        """Always return labels. Unmatched rows are synthesized, not dropped."""
+        return labels_for_state_row(row, meta)
 
     # --- WAN interfaces --------------------------------------------------
     data, path = first_working(vm, "interface", CANDIDATES["interface"])
     skipped_if = 0
     for r in data:
-        lb = lookup(r)
-        if not lb:
+        lb, synthesized = lookup(r)
+        if synthesized:
             skipped_if += 1
-            continue
         il = dict(lb, ifname=r.get("ifname") or r.get("interface") or "unknown",
                   vpn_id=vpn_id_of(r),
                   color=r.get("color") or "none")
@@ -747,8 +801,9 @@ def collect(vm):
             if v is not None:
                 metric.labels(**il).set(v * mult)
     if data and skipped_if:
-        log.warning("interface rows with no matching device: %d of %d (WAN will look empty)",
-                    skipped_if, len(data))
+        log.warning(
+            "interface rows with no /device match: %d of %d (published with synthesized labels)",
+            skipped_if, len(data))
     elif data:
         log.info("interfaces published from %s (%d rows)", path, len(data))
 
@@ -756,9 +811,7 @@ def collect(vm):
     data, path = first_working(vm, "omp", CANDIDATES["omp"])
     omp_tot, omp_up = {}, {}
     for r in data:
-        lb = lookup(r)
-        if not lb:
-            continue
+        lb, _synth = lookup(r)
         peer = r.get("peer") or r.get("peer-ip") or "unknown"
         up = 1.0 if str(r.get("state", "")).lower() == "up" else 0.0
         omp_peer_up.labels(peer=peer,
@@ -776,9 +829,7 @@ def collect(vm):
     data, path = first_working(vm, "bfd", CANDIDATES["bfd"])
     bfd_tot, bfd_up = {}, {}
     for r in data:
-        lb = lookup(r)
-        if not lb:
-            continue
+        lb, _synth = lookup(r)
         up = 1.0 if str(r.get("state", "")).lower() == "up" else 0.0
         bfd_session_up.labels(
             remote_system_ip=r.get("system-ip") or r.get("dst-ip") or "unknown",
@@ -798,9 +849,7 @@ def collect(vm):
     data, path = first_working(vm, "bgp", CANDIDATES["bgp"])
     bgp_tot, bgp_up = {}, {}
     for r in data:
-        lb = lookup(r)
-        if not lb:
-            continue
+        lb, _synth = lookup(r)
         state = str(r.get("state", "")).lower()
         # Established is the only healthy state. A peer in "active" or
         # "connect" is trying and failing -- as down as one that is idle.
@@ -829,9 +878,7 @@ def collect(vm):
     data, path = first_working(vm, "control", CANDIDATES["control"])
     ctrl_up, ctrl_tot = {}, {}
     for r in data:
-        lb = lookup(r)
-        if not lb:
-            continue
+        lb, _synth = lookup(r)
         state = str(r.get("state") or r.get("vstate") or "").lower()
         up = 1.0 if state == "up" else 0.0
         peer = r.get("peer") or r.get("system-ip") or r.get("peer-ip") or "unknown"
@@ -883,9 +930,7 @@ def collect(vm):
     data, path = first_working(vm, "tloc", CANDIDATES["tloc"])
     tloc_tot, tloc_ok = {}, {}
     for r in data:
-        lb = lookup(r)
-        if not lb:
-            continue
+        lb, _synth = lookup(r)
         color = str(r.get("color") or r.get("tloc-color") or "unknown")
         encap = str(r.get("encap") or r.get("encapsulation") or "unknown")
         state = str(r.get("state") or r.get("operation-state") or "").lower()
@@ -901,9 +946,7 @@ def collect(vm):
 
     data, path = first_working(vm, "approute", CANDIDATES["approute"])
     for r in data:
-        lb = lookup(r)
-        if not lb:
-            continue
+        lb, _synth = lookup(r)
         al = dict(
             lb,
             remote_system_ip=str(r.get("remote-system-ip") or r.get("system-ip") or r.get("dst-ip") or "unknown"),

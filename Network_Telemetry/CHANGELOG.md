@@ -16,8 +16,11 @@
 
 ### Bugs fixed
 
-- **Meraki WAN series had no region/country/site_id/device_name.** Unified PromQL `max by (region, country, site_id, …)` therefore could not drive Region → Site drill-down on Meraki circuits. Root cause: uplink scrape labelled only org/network/serial/uplink. Fix: join serial to the last device-health sweep (fallback: parse the network name).
-- **Meraki WAN “device” in unified rules was the network name**, not the hostname. Root cause: `label_replace(..., "device", "$1", "network", …)`. Fix: replace from `device_name`.
+- **Grafana WAN empty while Prometheus `count(wan_link_up)` is non-zero.** `{region=~".+"}` does not match series that omit `region`. Live `meraki_uplink_status` is `network/serial/uplink` only. Fix: `meraki_uplink_status:labeled` parses `FR-0031-ALENCON` → `site_id`/`country`/`region=unknown`.
+- **Meraki dashboard WAN used `device_name=~"$device"`** which matches nothing on that live label set. Fix: `network=~"$site_id.*"`.
+- **vManage exported 18 controller interfaces** because unmatched Interface rows were skipped. Fix: synthesize labels from the row; exclude `system`/loopback/vSmart from unified WAN.
+- **Meraki WAN series had no region/country/site_id/device_name.** Unified PromQL `max by (region, country, site_id, …)` therefore could not drive Region → Site drill-down on Meraki circuits. Root cause: uplink scrape labelled only org/network/serial/uplink. Fix: parse the network name in recording rules (and still copy `device_name` when the new exporter provides it).
+- **Meraki WAN “device” in unified rules was the network name**, not the hostname. Root cause: `label_replace(..., "device", "$1", "network", …)`. Fix: replace from `device_name` when present, otherwise keep the network name so panels are not empty.
 - **vManage counted control state `connect` as up.** Root cause: `state in (up, connect)`. `connect` is an FSM in progress. Fix: `up` only; per-connection series added.
 - **`INVENTORY_CYCLE` on vManage was unused.** Snapshots now honour it.
 - **Meraki image had no `requirements.txt` in tree** while the Dockerfile `COPY`ed it — builds would fail. Added.

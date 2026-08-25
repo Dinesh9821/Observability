@@ -17,41 +17,146 @@
 
 groups:
   # =======================================================================
+  # Meraki geo fill -- Grafana All (region=~".+") requires the label to exist
+  # =======================================================================
+  # Live uplink series often look like:
+  #   meraki_uplink_status{network="FR-0031-ALENCON",serial="...",uplink="wan1"}
+  # with no region/country/site_id. {region=~"$region"} then matches nothing
+  # even when Region = All. Parse the network name; leave a real region alone.
+  - name: meraki_geo_labels
+    interval: 60s
+    rules:
+      - record: meraki_uplink_status:labeled
+        expr: |
+          label_replace(
+            label_replace(
+              label_replace(
+                label_replace(
+                  label_replace(
+                    label_replace(
+                      meraki_uplink_status,
+                      "site_id", "$1", "network", "^([A-Z]{2}-[0-9]{4})"),
+                    "country", "$1", "network", "^([A-Z]{2})-"),
+                  "region", "unknown", "region", "^$"),
+                "priority", "P4", "priority", "^$"),
+              "device", "$1", "network", "(.*)"),
+            "device", "$1", "device_name", "(.+)")
+      - record: meraki_uplink_received_bytes_per_second:labeled
+        expr: |
+          label_replace(
+            label_replace(
+              label_replace(
+                label_replace(
+                  label_replace(
+                    meraki_uplink_received_bytes_per_second,
+                    "site_id", "$1", "network", "^([A-Z]{2}-[0-9]{4})"),
+                  "country", "$1", "network", "^([A-Z]{2})-"),
+                "region", "unknown", "region", "^$"),
+              "priority", "P4", "priority", "^$"),
+            "device", "$1", "network", "(.*)")
+      - record: meraki_uplink_sent_bytes_per_second:labeled
+        expr: |
+          label_replace(
+            label_replace(
+              label_replace(
+                label_replace(
+                  label_replace(
+                    meraki_uplink_sent_bytes_per_second,
+                    "site_id", "$1", "network", "^([A-Z]{2}-[0-9]{4})"),
+                  "country", "$1", "network", "^([A-Z]{2})-"),
+                "region", "unknown", "region", "^$"),
+              "priority", "P4", "priority", "^$"),
+            "device", "$1", "network", "(.*)")
+      - record: meraki_uplink_loss_percent:labeled
+        expr: |
+          label_replace(
+            label_replace(
+              label_replace(
+                label_replace(
+                  label_replace(
+                    meraki_uplink_loss_percent,
+                    "site_id", "$1", "network", "^([A-Z]{2}-[0-9]{4})"),
+                  "country", "$1", "network", "^([A-Z]{2})-"),
+                "region", "unknown", "region", "^$"),
+              "priority", "P4", "priority", "^$"),
+            "device", "$1", "network", "(.*)")
+      - record: meraki_uplink_latency_milliseconds:labeled
+        expr: |
+          label_replace(
+            label_replace(
+              label_replace(
+                label_replace(
+                  label_replace(
+                    meraki_uplink_latency_milliseconds,
+                    "site_id", "$1", "network", "^([A-Z]{2}-[0-9]{4})"),
+                  "country", "$1", "network", "^([A-Z]{2})-"),
+                "region", "unknown", "region", "^$"),
+              "priority", "P4", "priority", "^$"),
+            "device", "$1", "network", "(.*)")
+      - record: meraki_uplink_jitter_milliseconds:labeled
+        expr: |
+          label_replace(
+            label_replace(
+              label_replace(
+                label_replace(
+                  label_replace(
+                    meraki_uplink_jitter_milliseconds,
+                    "site_id", "$1", "network", "^([A-Z]{2}-[0-9]{4})"),
+                  "country", "$1", "network", "^([A-Z]{2})-"),
+                "region", "unknown", "region", "^$"),
+              "priority", "P4", "priority", "^$"),
+            "device", "$1", "network", "(.*)")
+      - record: meraki_uplink_capacity_bits_per_second:labeled
+        expr: |
+          label_replace(
+            label_replace(
+              label_replace(
+                label_replace(
+                  label_replace(
+                    meraki_uplink_capacity_bits_per_second,
+                    "site_id", "$1", "network", "^([A-Z]{2}-[0-9]{4})"),
+                  "country", "$1", "network", "^([A-Z]{2})-"),
+                "region", "unknown", "region", "^$"),
+              "priority", "P4", "priority", "^$"),
+            "device", "$1", "network", "(.*)")
+      - record: meraki_device_up:labeled
+        expr: |
+          label_replace(
+            label_replace(
+              label_replace(
+                label_replace(
+                  label_replace(
+                    meraki_device_up,
+                    "site_id", "$1", "network", "^([A-Z]{2}-[0-9]{4})"),
+                  "country", "$1", "network", "^([A-Z]{2})-"),
+                "region", "unknown", "region", "^$"),
+              "priority", "P4", "priority", "^$"),
+            "device_name", "$1", "name", "(.+)")
+
+  # =======================================================================
   # WAN throughput -- always present, no denominator required
   # =======================================================================
   - name: unified_wan_throughput
     interval: 60s
     rules:
-      # Join Meraki uplinks to meraki_device_up on serial so region/country/
-      # site_id/device_name exist even when the uplink scrape ran before the
-      # device sweep, or an older exporter omitted those labels. Grafana
-      # {region=~".*"} does not match series that lack a region label at all.
       - record: wan_link_rx_bits_per_second
         expr: |
           max by (region, country, site_id, priority, device, link) (
             label_replace(
-              label_replace(
-                (
-                  meraki_uplink_received_bytes_per_second
-                  * on (serial) group_left (region, country, site_id, priority, device_name)
-                    (max by (serial, region, country, site_id, priority, device_name) (meraki_device_up) * 0 + 1)
-                  or
-                  meraki_uplink_received_bytes_per_second
-                ) * 8,
-                "device", "$1", "device_name", "(.+)"),
+              meraki_uplink_received_bytes_per_second:labeled * 8,
               "link", "$1", "uplink", "(.*)")
           )
         labels: {source: meraki}
 
-      # Transport WAN: VPN 0, empty VPN, or a TLOC colour (not "none").
+      # Edge transport: VPN 0 / TLOC colour. Skip system/loopback and controllers.
       - record: wan_link_rx_bits_per_second
         expr: |
           max by (region, country, site_id, priority, device, link) (
             label_replace(
               label_replace(
-                vmanage_interface_rx_bits_per_second{vpn_id=~"^$|^0$|^0\\.0$"}
+                vmanage_interface_rx_bits_per_second{ifname!~"^[sS]ystem$|^[lL]oopback.*$",device_type!~"vsmart|vbond|vmanage",hostname!~"^[vV][Ss]mart|^[vV][Bb]ond|^[vV][Mm]anage",vpn_id=~"^$|^0$|^0\\.0$"}
                 or
-                vmanage_interface_rx_bits_per_second{color!~"^$|^none$"},
+                vmanage_interface_rx_bits_per_second{ifname!~"^[sS]ystem$|^[lL]oopback.*$",device_type!~"vsmart|vbond|vmanage",hostname!~"^[vV][Ss]mart|^[vV][Bb]ond|^[vV][Mm]anage",color!~"^$|^none$"},
                 "device", "$1", "hostname", "(.*)"),
               "link", "$1", "ifname", "(.*)")
           )
@@ -61,15 +166,7 @@ groups:
         expr: |
           max by (region, country, site_id, priority, device, link) (
             label_replace(
-              label_replace(
-                (
-                  meraki_uplink_sent_bytes_per_second
-                  * on (serial) group_left (region, country, site_id, priority, device_name)
-                    (max by (serial, region, country, site_id, priority, device_name) (meraki_device_up) * 0 + 1)
-                  or
-                  meraki_uplink_sent_bytes_per_second
-                ) * 8,
-                "device", "$1", "device_name", "(.+)"),
+              meraki_uplink_sent_bytes_per_second:labeled * 8,
               "link", "$1", "uplink", "(.*)")
           )
         labels: {source: meraki}
@@ -79,9 +176,9 @@ groups:
           max by (region, country, site_id, priority, device, link) (
             label_replace(
               label_replace(
-                vmanage_interface_tx_bits_per_second{vpn_id=~"^$|^0$|^0\\.0$"}
+                vmanage_interface_tx_bits_per_second{ifname!~"^[sS]ystem$|^[lL]oopback.*$",device_type!~"vsmart|vbond|vmanage",hostname!~"^[vV][Ss]mart|^[vV][Bb]ond|^[vV][Mm]anage",vpn_id=~"^$|^0$|^0\\.0$"}
                 or
-                vmanage_interface_tx_bits_per_second{color!~"^$|^none$"},
+                vmanage_interface_tx_bits_per_second{ifname!~"^[sS]ystem$|^[lL]oopback.*$",device_type!~"vsmart|vbond|vmanage",hostname!~"^[vV][Ss]mart|^[vV][Bb]ond|^[vV][Mm]anage",color!~"^$|^none$"},
                 "device", "$1", "hostname", "(.*)"),
               "link", "$1", "ifname", "(.*)")
           )
@@ -101,13 +198,7 @@ groups:
         expr: |
           max by (region, country, site_id, priority, device, link) (
             label_replace(
-              label_replace(
-                meraki_uplink_status
-                * on (serial) group_left (region, country, site_id, priority, device_name)
-                  (max by (serial, region, country, site_id, priority, device_name) (meraki_device_up) * 0 + 1)
-                or
-                meraki_uplink_status,
-                "device", "$1", "device_name", "(.+)"),
+              meraki_uplink_status:labeled,
               "link", "$1", "uplink", "(.*)")
           )
         labels: {source: meraki}
@@ -117,9 +208,9 @@ groups:
           max by (region, country, site_id, priority, device, link) (
             label_replace(
               label_replace(
-                vmanage_interface_oper_up{vpn_id=~"^$|^0$|^0\\.0$"}
+                vmanage_interface_oper_up{ifname!~"^[sS]ystem$|^[lL]oopback.*$",device_type!~"vsmart|vbond|vmanage",hostname!~"^[vV][Ss]mart|^[vV][Bb]ond|^[vV][Mm]anage",vpn_id=~"^$|^0$|^0\\.0$"}
                 or
-                vmanage_interface_oper_up{color!~"^$|^none$"},
+                vmanage_interface_oper_up{ifname!~"^[sS]ystem$|^[lL]oopback.*$",device_type!~"vsmart|vbond|vmanage",hostname!~"^[vV][Ss]mart|^[vV][Bb]ond|^[vV][Mm]anage",color!~"^$|^none$"},
                 "device", "$1", "hostname", "(.*)"),
               "link", "$1", "ifname", "(.*)")
           )
@@ -136,11 +227,7 @@ groups:
         expr: |
           max by (region, country, site_id, priority, device, link) (
             label_replace(
-              label_replace(
-                meraki_uplink_capacity_bits_per_second
-                  * on (serial, uplink) group_left (network, device_name)
-                    (meraki_uplink_sent_bytes_per_second * 0 + 1),
-                "device", "$1", "device_name", "(.*)"),
+              meraki_uplink_capacity_bits_per_second:labeled,
               "link", "$1", "uplink", "(.*)")
           )
         labels: {source: meraki, basis: cir}
@@ -152,8 +239,8 @@ groups:
         expr: |
           max by (region, country, site_id, priority, device, link) (
             label_replace(
-              label_replace(vmanage_interface_speed_bits_per_second{vpn_id=~"^$|^0$|^0\\.0$"} > 0
-                            or vmanage_interface_speed_bits_per_second{color!~"^$|^none$"} > 0,
+              label_replace(vmanage_interface_speed_bits_per_second{ifname!~"^[sS]ystem$|^[lL]oopback.*$",device_type!~"vsmart|vbond|vmanage",hostname!~"^[vV][Ss]mart|^[vV][Bb]ond|^[vV][Mm]anage",vpn_id=~"^$|^0$|^0\\.0$"} > 0
+                            or vmanage_interface_speed_bits_per_second{ifname!~"^[sS]ystem$|^[lL]oopback.*$",device_type!~"vsmart|vbond|vmanage",hostname!~"^[vV][Ss]mart|^[vV][Bb]ond|^[vV][Mm]anage",color!~"^$|^none$"} > 0,
                             "device", "$1", "hostname", "(.*)"),
               "link", "$1", "ifname", "(.*)")
           )
@@ -212,8 +299,10 @@ groups:
             label_replace(
               label_replace(
                 label_replace(
-                  label_replace(meraki_device_up,
-                                "device", "$1", "device_name", "(.*)"),
+                  label_replace(
+                    label_replace(meraki_device_up:labeled,
+                                  "device", "$1", "network", "(.*)"),
+                    "device", "$1", "device_name", "(.+)"),
                   "type", "$1", "product_type", "(.*)"),
                 "role", "$1", "device_role", "(.*)"),
               "ident", "$1", "serial", "(.*)")
@@ -304,7 +393,7 @@ groups:
         expr: |
           max by (region, country, site_id, priority, device, link) (
             label_replace(
-              label_replace(meraki_uplink_loss_percent,
+              label_replace(meraki_uplink_loss_percent:labeled,
                             "device", "$1", "device_name", "(.*)"),
               "link", "$1", "uplink", "(.*)")
           )
@@ -322,7 +411,7 @@ groups:
         expr: |
           max by (region, country, site_id, priority, device, link) (
             label_replace(
-              label_replace(meraki_uplink_latency_milliseconds,
+              label_replace(meraki_uplink_latency_milliseconds:labeled,
                             "device", "$1", "device_name", "(.*)"),
               "link", "$1", "uplink", "(.*)")
           )
@@ -340,7 +429,7 @@ groups:
         expr: |
           max by (region, country, site_id, priority, device, link) (
             label_replace(
-              label_replace(meraki_uplink_jitter_milliseconds,
+              label_replace(meraki_uplink_jitter_milliseconds:labeled,
                             "device", "$1", "device_name", "(.*)"),
               "link", "$1", "uplink", "(.*)")
           )

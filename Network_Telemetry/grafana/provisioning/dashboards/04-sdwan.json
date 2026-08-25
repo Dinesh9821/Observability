@@ -11,7 +11,7 @@
   "editable": true,
   "graphTooltip": 1,
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "refresh": "1m",
   "time": {
     "from": "now-6h",
@@ -882,7 +882,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "vmanage_interface_rx_bits_per_second{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\", vpn_id=~\"^$|^0$|^0\\\\.0$\"} or vmanage_interface_rx_bits_per_second{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\", color!~\"^$|^none$\"}",
+          "expr": "vmanage_interface_rx_bits_per_second{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\", ifname!~\"^[sS]ystem$|^[lL]oopback.*$\", device_type!~\"vsmart|vbond|vmanage\", hostname!~\"^[vV][Ss]mart|^[vV][Bb]ond|^[vV][Mm]anage\", vpn_id=~\"^$|^0$|^0\\\\.0$\"} or vmanage_interface_rx_bits_per_second{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\", ifname!~\"^[sS]ystem$|^[lL]oopback.*$\", device_type!~\"vsmart|vbond|vmanage\", hostname!~\"^[vV][Ss]mart|^[vV][Bb]ond|^[vV][Mm]anage\", color!~\"^$|^none$\"}",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -960,7 +960,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "vmanage_interface_tx_bits_per_second{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\", vpn_id=~\"^$|^0$|^0\\\\.0$\"} or vmanage_interface_tx_bits_per_second{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\", color!~\"^$|^none$\"}",
+          "expr": "vmanage_interface_tx_bits_per_second{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\", ifname!~\"^[sS]ystem$|^[lL]oopback.*$\", device_type!~\"vsmart|vbond|vmanage\", hostname!~\"^[vV][Ss]mart|^[vV][Bb]ond|^[vV][Mm]anage\", vpn_id=~\"^$|^0$|^0\\\\.0$\"} or vmanage_interface_tx_bits_per_second{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\", ifname!~\"^[sS]ystem$|^[lL]oopback.*$\", device_type!~\"vsmart|vbond|vmanage\", hostname!~\"^[vV][Ss]mart|^[vV][Bb]ond|^[vV][Mm]anage\", color!~\"^$|^none$\"}",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -1026,7 +1026,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "vmanage_interface_oper_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\", vpn_id=~\"^$|^0$|^0\\\\.0$\"} or vmanage_interface_oper_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\", color!~\"^$|^none$\"}",
+          "expr": "vmanage_interface_oper_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\", ifname!~\"^[sS]ystem$|^[lL]oopback.*$\", device_type!~\"vsmart|vbond|vmanage\", hostname!~\"^[vV][Ss]mart|^[vV][Bb]ond|^[vV][Mm]anage\", vpn_id=~\"^$|^0$|^0\\\\.0$\"} or vmanage_interface_oper_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\", ifname!~\"^[sS]ystem$|^[lL]oopback.*$\", device_type!~\"vsmart|vbond|vmanage\", hostname!~\"^[vV][Ss]mart|^[vV][Bb]ond|^[vV][Mm]anage\", color!~\"^$|^none$\"}",
           "refId": "A",
           "range": false,
           "instant": true,

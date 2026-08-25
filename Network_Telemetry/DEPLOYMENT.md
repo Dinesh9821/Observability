@@ -836,7 +836,9 @@ sudo cp grafana/provisioning/dashboards/0*.json /etc/grafana/provisioning/dashbo
 | Symptom | Likely cause | What to do |
 |---------|--------------|------------|
 | Meraki target up, no device metrics | API key rejected; exporter still serves `/metrics` | `rate(meraki_api_requests_total{outcome!="success"}[10m])` — see alert `MerakiApiAuthFailure` |
-| WAN panels empty for Meraki, devices present | Old exporter without geo labels on uplinks | Upgrade meraki-exporter; confirm `meraki_uplink_status` has `site_id` |
+| WAN panels empty, Explore `count(wan_link_up)` is ~184 | Series have no `region` label; Grafana All is `{region=~".+"}` | Copy `prometheus/rules/unified-rules.yml`, `promtool check rules`, restart Prometheus. Confirm `count(wan_link_up{region=~".+"})` matches. |
+| Meraki WAN table empty, `meraki_uplink_status` has `network` only | Dashboard used `device_name=~"$device"` | Deploy regenerated `03-meraki.json`; WAN matches `network=~"$site_id.*"` |
+| Viptela WAN only vSmart `system`/`eth1` | Interface rows not matched to `/device` were dropped | Copy `vmanage_exporter.py` and restart vmanage-exporter; log should say “published with synthesized labels” |
 | SD-WAN OSPF/EIGRP/TLOC empty | vManage version has no that bulk entity | `vmanage_endpoint_available{signal="ospf"}` = 0 is **not** an outage |
 | Inventory From/To table empty | Dates are not a precomputed pair | Use consecutive days, or `curl :9825/delta?from=&to=` |
 | vManage login loop | Bad password; vManage returns HTML 200 | Logs: `login rejected -- HTML login page` |

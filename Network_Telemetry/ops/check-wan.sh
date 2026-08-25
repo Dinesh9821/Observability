@@ -25,6 +25,9 @@ q() { curl -sf --get "$PROM/api/v1/query" --data-urlencode "query=$1" | python3 
 echo -n "up{job=\"meraki\"}: "; q 'up{job="meraki"}'
 echo -n "up{job=\"vmanage\"}: "; q 'up{job="vmanage"}'
 echo -n "wan_link_up: "; q 'count(wan_link_up)'
+echo -n "wan_link_up with region label: "; q 'count(wan_link_up{region=~".+"})'
+echo -n "wan_link_up missing region: "; q 'count(wan_link_up unless wan_link_up{region=~".+"})'
+echo -n "meraki_uplink_status:labeled: "; q 'count(meraki_uplink_status:labeled)'
 echo -n "wan_link_rx_bits_per_second: "; q 'count(wan_link_rx_bits_per_second)'
 echo -n "meraki_uplink_status via prom: "; q 'count(meraki_uplink_status)'
 echo -n "vmanage_interface_oper_up via prom: "; q 'count(vmanage_interface_oper_up)'
@@ -32,4 +35,6 @@ echo -n "vmanage_interface_oper_up via prom: "; q 'count(vmanage_interface_oper_
 echo ""
 echo "If section 1 is 0: exporters are not collecting (API/key/session)."
 echo "If section 1 has series but wan_link_* is 0: copy unified-rules.yml and restart Prometheus."
-echo "If wan_link_* has series but Grafana is empty: Region/Country/Site filters; set them to All."
+echo "If wan_link_up is non-zero but wan_link_up{region=~\".+\"} is 0: Grafana All filters hide unlabeled series — copy the new unified-rules.yml."
+echo "If meraki_uplink_status has no site_id: Meraki dashboard WAN uses network=~\"\$site_id.*\" (FR-0031 matches FR-0031-ALENCON)."
+echo "If vmanage_interface_oper_up is only vSmart: copy vmanage_exporter.py (unmatched edges were dropped)."

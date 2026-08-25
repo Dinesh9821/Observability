@@ -11,7 +11,7 @@
   "editable": true,
   "graphTooltip": 1,
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "refresh": "1m",
   "time": {
     "from": "now-6h",
@@ -577,7 +577,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "count(meraki_uplink_status{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", device_name=~\"$device\"} == 0) or vector(0)",
+          "expr": "count(meraki_uplink_status{network=~\"$site_id.*\"} == 0) or vector(0)",
           "refId": "A",
           "range": false,
           "instant": true
@@ -659,7 +659,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "max(meraki_uplink_util_percent{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\"}) or vector(0)",
+          "expr": "max(meraki_uplink_util_percent{network=~\"$site_id.*\"}) or vector(0)",
           "refId": "A",
           "range": false,
           "instant": true
@@ -737,7 +737,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "max(meraki_uplink_loss_percent{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", device_name=~\"$device\"}) or vector(0)",
+          "expr": "max(meraki_uplink_loss_percent{network=~\"$site_id.*\"}) or vector(0)",
           "refId": "A",
           "range": false,
           "instant": true
@@ -847,7 +847,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "1 active HEALTHY, 0.5 ready/standby, 0 DOWN. IP labels are on meraki_uplink_ip_info.",
+      "description": "1 active HEALTHY, 0.5 ready/standby, 0 DOWN. Filtered by network name (FR-0031-*). IP labels are on meraki_uplink_ip_info.",
       "gridPos": {
         "h": 10,
         "w": 12,
@@ -897,7 +897,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "meraki_uplink_status{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", device_name=~\"$device\"}",
+          "expr": "meraki_uplink_status{network=~\"$site_id.*\"}",
           "refId": "A",
           "range": false,
           "instant": true,
@@ -993,7 +993,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "meraki_uplink_ip_info{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", device_name=~\"$device\"}",
+          "expr": "meraki_uplink_ip_info{network=~\"$site_id.*\"}",
           "refId": "A",
           "range": false,
           "instant": true,
@@ -1102,11 +1102,11 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "meraki_uplink_received_bytes_per_second{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", device_name=~\"$device\"} * 8",
+          "expr": "meraki_uplink_received_bytes_per_second{network=~\"$site_id.*\"} * 8",
           "refId": "A",
           "range": true,
           "instant": false,
-          "legendFormat": "{{device_name}} {{uplink}} RX"
+          "legendFormat": "{{network}} {{uplink}} RX"
         },
         {
           "datasource": {
@@ -1114,11 +1114,11 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "meraki_uplink_sent_bytes_per_second{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", device_name=~\"$device\"} * 8 * -1",
+          "expr": "meraki_uplink_sent_bytes_per_second{network=~\"$site_id.*\"} * 8 * -1",
           "refId": "A",
           "range": true,
           "instant": false,
-          "legendFormat": "{{device_name}} {{uplink}} TX"
+          "legendFormat": "{{network}} {{uplink}} TX"
         }
       ]
     },
@@ -1192,11 +1192,11 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "meraki_uplink_loss_percent{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", device_name=~\"$device\"}",
+          "expr": "meraki_uplink_loss_percent{network=~\"$site_id.*\"}",
           "refId": "A",
           "range": true,
           "instant": false,
-          "legendFormat": "{{device_name}} {{uplink}} loss %"
+          "legendFormat": "{{network}} {{uplink}} loss %"
         },
         {
           "datasource": {
@@ -1204,11 +1204,11 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "meraki_uplink_latency_milliseconds{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", device_name=~\"$device\"}",
+          "expr": "meraki_uplink_latency_milliseconds{network=~\"$site_id.*\"}",
           "refId": "A",
           "range": true,
           "instant": false,
-          "legendFormat": "{{device_name}} {{uplink}} latency"
+          "legendFormat": "{{network}} {{uplink}} latency"
         }
       ]
     },

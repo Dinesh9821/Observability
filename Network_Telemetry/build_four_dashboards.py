@@ -96,7 +96,16 @@ def cascade_vars(metric, device_label="device"):
 SCOPE = 'region=~"$region", country=~"$country", site_id=~"$site_id"'
 DEV = SCOPE + ', device=~"$device"'
 MDEV = SCOPE + ', device_name=~"$device"'
+# Live meraki_uplink_* often has network/serial/uplink only. Grafana
+# {region=~".+"} / {device_name=~".+"} hides those series. Site All (.+)
+# still matches FR-0031-ALENCON via network=~"$site_id.*".
+MWAN = 'network=~"$site_id.*"'
 VDEV = SCOPE + ', hostname=~"$device"'
+VWAN = (
+    SCOPE
+    + ', hostname=~"$device", ifname!~"^[sS]ystem$|^[lL]oopback.*$", '
+    'device_type!~"vsmart|vbond|vmanage", hostname!~"^[vV][Ss]mart|^[vV][Bb]ond|^[vV][Mm]anage"'
+)
 
 
 def stat(pid, title, expr, unit, steps, x, y, w=4, h=4, graph="none", dec=None,
@@ -177,7 +186,7 @@ def dash(uid, title, desc, vars_, panels, refresh="1m"):
         "uid": uid, "title": title, "description": desc,
         "tags": ["network", "l1", "observability"],
         "timezone": "browser", "editable": True, "graphTooltip": 1,
-        "schemaVersion": 39, "version": 2, "refresh": refresh,
+        "schemaVersion": 39, "version": 3, "refresh": refresh,
         "time": {"from": "now-6h", "to": "now"},
         "timepicker": {"refresh_intervals": ["1m", "5m", "15m", "30m", "1h"]},
         "fiscalYearStartMonth": 0, "links": LINKS,
@@ -396,12 +405,12 @@ def meraki():
     P.append(stat(4, "DOWN",
                   'count(meraki_device_up{%s} == 0) or vector(0)' % MDEV, "short", DOWN, 9, y, w=3, h=4))
     P.append(stat(5, "WAN DOWN",
-                  'count(meraki_uplink_status{%s} == 0) or vector(0)' % MDEV, "short", DOWN, 12, y, w=3, h=4))
+                  'count(meraki_uplink_status{%s} == 0) or vector(0)' % MWAN, "short", DOWN, 12, y, w=3, h=4))
     P.append(stat(6, "Peak WAN util",
-                  'max(meraki_uplink_util_percent{%s}) or vector(0)' % SCOPE,
+                  'max(meraki_uplink_util_percent{%s}) or vector(0)' % MWAN,
                   "percent", PCT, 15, y, w=3, h=4, dec=1))
     P.append(stat(7, "Peak loss",
-                  'max(meraki_uplink_loss_percent{%s}) or vector(0)' % MDEV, "percent",
+                  'max(meraki_uplink_loss_percent{%s}) or vector(0)' % MWAN, "percent",
                   [{"color": "green", "value": None}, {"color": "orange", "value": 1},
                    {"color": "red", "value": 5}], 18, y, w=3, h=4, dec=2))
     P.append(stat(8, "API age",
@@ -412,24 +421,24 @@ def meraki():
 
     P.append(row(901, "MX WAN / uplink", y)); y += 1
     P.append(table(10, "Uplink status, IP, HA",
-                   'meraki_uplink_status{%s}' % MDEV, 0, y, 12, 10,
+                   'meraki_uplink_status{%s}' % MWAN, 0, y, 12, 10,
                    {"device_name": "Device", "uplink": "Uplink", "site_id": "Site",
                     "serial": "Serial", "network": "Network", "Value": "Status"},
                    {"site_id": 0, "device_name": 1, "uplink": 2, "Value": 3},
-                   desc="1 active HEALTHY, 0.5 ready/standby, 0 DOWN. IP labels are on meraki_uplink_ip_info."))
+                   desc="1 active HEALTHY, 0.5 ready/standby, 0 DOWN. Filtered by network name (FR-0031-*). IP labels are on meraki_uplink_ip_info."))
     P.append(table(11, "Uplink addressing",
-                   'meraki_uplink_ip_info{%s}' % MDEV, 12, y, 12, 10,
+                   'meraki_uplink_ip_info{%s}' % MWAN, 12, y, 12, 10,
                    {"device_name": "Device", "uplink": "Uplink", "ip": "WAN IP",
                     "public_ip": "Public IP", "gateway": "Gateway", "site_id": "Site"},
                    {"device_name": 0, "uplink": 1, "ip": 2, "public_ip": 3, "gateway": 4}))
     y += 10
     P.append(timeseries(20, "MX uplink throughput",
-                        [tgt('meraki_uplink_received_bytes_per_second{%s} * 8' % MDEV, "{{device_name}} {{uplink}} RX"),
-                         tgt('meraki_uplink_sent_bytes_per_second{%s} * 8 * -1' % MDEV, "{{device_name}} {{uplink}} TX")],
+                        [tgt('meraki_uplink_received_bytes_per_second{%s} * 8' % MWAN, "{{network}} {{uplink}} RX"),
+                         tgt('meraki_uplink_sent_bytes_per_second{%s} * 8 * -1' % MWAN, "{{network}} {{uplink}} TX")],
                         "bps", 0, y, 12, 8))
     P.append(timeseries(21, "MX loss / latency",
-                        [tgt('meraki_uplink_loss_percent{%s}' % MDEV, "{{device_name}} {{uplink}} loss %"),
-                         tgt('meraki_uplink_latency_milliseconds{%s}' % MDEV, "{{device_name}} {{uplink}} latency")],
+                        [tgt('meraki_uplink_loss_percent{%s}' % MWAN, "{{network}} {{uplink}} loss %"),
+                         tgt('meraki_uplink_latency_milliseconds{%s}' % MWAN, "{{network}} {{uplink}} latency")],
                         "short", 12, y, 12, 8,
                         desc="Loss is percent; latency is milliseconds. Jitter series appear only if Meraki sends jitterMs."))
     y += 8
@@ -509,16 +518,16 @@ def sdwan():
 
     P.append(row(901, "WAN / uplink (VPN 0 transport)", y)); y += 1
     P.append(timeseries(20, "WAN RX",
-                        [tgt('vmanage_interface_rx_bits_per_second{%s, vpn_id=~"^$|^0$|^0\\\\.0$"} or vmanage_interface_rx_bits_per_second{%s, color!~"^$|^none$"}' % (VDEV, VDEV),
+                        [tgt('vmanage_interface_rx_bits_per_second{%s, vpn_id=~"^$|^0$|^0\\\\.0$"} or vmanage_interface_rx_bits_per_second{%s, color!~"^$|^none$"}' % (VWAN, VWAN),
                              "{{hostname}} {{ifname}}")],
                         "bps", 0, y, 12, 8))
     P.append(timeseries(21, "WAN TX",
-                        [tgt('vmanage_interface_tx_bits_per_second{%s, vpn_id=~"^$|^0$|^0\\\\.0$"} or vmanage_interface_tx_bits_per_second{%s, color!~"^$|^none$"}' % (VDEV, VDEV),
+                        [tgt('vmanage_interface_tx_bits_per_second{%s, vpn_id=~"^$|^0$|^0\\\\.0$"} or vmanage_interface_tx_bits_per_second{%s, color!~"^$|^none$"}' % (VWAN, VWAN),
                              "{{hostname}} {{ifname}}")],
                         "bps", 12, y, 12, 8))
     y += 8
     P.append(table(22, "Transport interfaces",
-                   'vmanage_interface_oper_up{%s, vpn_id=~"^$|^0$|^0\\\\.0$"} or vmanage_interface_oper_up{%s, color!~"^$|^none$"}' % (VDEV, VDEV), 0, y, 24, 9,
+                   'vmanage_interface_oper_up{%s, vpn_id=~"^$|^0$|^0\\\\.0$"} or vmanage_interface_oper_up{%s, color!~"^$|^none$"}' % (VWAN, VWAN), 0, y, 24, 9,
                    {"hostname": "Device", "ifname": "Interface", "color": "Transport",
                     "vpn_id": "VPN", "site_id": "Site", "Value": "Oper"},
                    {"site_id": 0, "hostname": 1, "ifname": 2, "color": 3, "Value": 4}))
