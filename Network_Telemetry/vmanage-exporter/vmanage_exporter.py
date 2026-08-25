@@ -43,6 +43,15 @@ import urllib.request
 
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
+_INV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "inventory")
+if os.path.isdir(_INV):
+    sys.path.insert(0, _INV)
+try:
+    from inventory_lib import vmanage_record, write_snapshot
+except ImportError:
+    vmanage_record = None  # type: ignore
+    write_snapshot = None  # type: ignore
+
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
@@ -187,7 +196,71 @@ bgp_neighbors_up = Gauge(
 
 control_connections_up = Gauge(
     "vmanage_control_connections_up",
-    "Control connections in the up state", DEV_LABELS,
+    "Control connections in the up state (state==up only; 'connect' is not up)",
+    DEV_LABELS,
+)
+control_connections_total = Gauge(
+    "vmanage_control_connections_total",
+    "Control connections configured on the device",
+    DEV_LABELS,
+)
+control_connection_up = Gauge(
+    "vmanage_control_connection_up",
+    "1 when this control connection is up",
+    DEV_LABELS + ["peer", "peer_type", "local_color", "remote_color", "protocol"],
+)
+
+ospf_neighbor_up = Gauge(
+    "vmanage_ospf_neighbor_up",
+    "1 when the OSPF neighbour is FULL. Absent entirely when vManage has no "
+    "OSPF state endpoint (see vmanage_endpoint_available{signal=\"ospf\"}).",
+    DEV_LABELS + ["neighbor", "area", "ifname", "state"],
+)
+ospf_neighbors_up = Gauge(
+    "vmanage_ospf_neighbors_up", "OSPF neighbours in FULL", DEV_LABELS,
+)
+ospf_neighbors_total = Gauge(
+    "vmanage_ospf_neighbors_total", "OSPF neighbours on the device", DEV_LABELS,
+)
+
+eigrp_neighbor_up = Gauge(
+    "vmanage_eigrp_neighbor_up",
+    "1 when the EIGRP neighbour is up. Absent when the collector has no EIGRP data.",
+    DEV_LABELS + ["neighbor", "as_number", "ifname", "state"],
+)
+eigrp_neighbors_up = Gauge(
+    "vmanage_eigrp_neighbors_up", "EIGRP neighbours up", DEV_LABELS,
+)
+eigrp_neighbors_total = Gauge(
+    "vmanage_eigrp_neighbors_total", "EIGRP neighbours on the device", DEV_LABELS,
+)
+
+tloc_up = Gauge(
+    "vmanage_tloc_up",
+    "1 when the TLOC is up",
+    DEV_LABELS + ["color", "encap"],
+)
+tloc_total = Gauge(
+    "vmanage_tloc_total", "TLOCs on the device", DEV_LABELS,
+)
+tloc_up_count = Gauge(
+    "vmanage_tloc_up_count", "TLOCs currently up", DEV_LABELS,
+)
+
+approute_latency_ms = Gauge(
+    "vmanage_approute_latency_milliseconds",
+    "App-route / SLA latency for a tunnel. Only present when vManage exposes AppRoute.",
+    DEV_LABELS + ["remote_system_ip", "local_color", "remote_color"],
+)
+approute_jitter_ms = Gauge(
+    "vmanage_approute_jitter_milliseconds",
+    "App-route / SLA jitter for a tunnel",
+    DEV_LABELS + ["remote_system_ip", "local_color", "remote_color"],
+)
+approute_loss_percent = Gauge(
+    "vmanage_approute_loss_percent",
+    "App-route / SLA packet loss for a tunnel",
+    DEV_LABELS + ["remote_system_ip", "local_color", "remote_color"],
 )
 
 # --- site rollups ---------------------------------------------------------
@@ -512,9 +585,45 @@ CANDIDATES = {
             "/dataservice/data/device/state/BgpNeighbor"],
     "control": ["/dataservice/data/device/state/ControlConnection",
                 "/dataservice/data/device/state/ControlConnections"],
+    "ospf": ["/dataservice/data/device/state/OSPFv2Neighbor",
+             "/dataservice/data/device/state/OSPFNeighbor",
+             "/dataservice/data/device/state/CEdgeOSPFv2Neighbor",
+             "/dataservice/data/device/state/OspfNeighbor"],
+    "eigrp": ["/dataservice/data/device/state/EIGRPNeighbor",
+              "/dataservice/data/device/state/CEdgeEIGRPNeighbor",
+              "/dataservice/data/device/state/EigrpNeighbor"],
+    "tloc": ["/dataservice/data/device/state/TLOC",
+             "/dataservice/data/device/state/CLoc",
+             "/dataservice/data/device/state/LocalTloc"],
+    "approute": ["/dataservice/data/device/state/AppRouteStatistics",
+                 "/dataservice/data/device/state/AppRouteStat",
+                 "/dataservice/data/device/statistics/approutestatsstatistics"],
 }
 
 REACH_VALUE = {"reachable": 1.0, "staging": 0.5, "unreachable": 0.0}
+
+
+def _collect_neighbor_table(vm, signal, candidates, lookup, up_metric, total_metric,
+                            up_count_metric, extra, is_up):
+    data, path = first_working(vm, signal, candidates)
+    tot, ok = {}, {}
+    for r in data:
+        lb = lookup(r)
+        if not lb:
+            continue
+        labels = dict(lb, **extra(r))
+        up = 1.0 if is_up(r) else 0.0
+        up_metric.labels(**labels).set(up)
+        k = tuple(sorted(lb.items()))
+        tot[k] = tot.get(k, 0) + 1
+        ok[k] = ok.get(k, 0) + up
+    for k, n in tot.items():
+        lb = dict(k)
+        total_metric.labels(**lb).set(n)
+        up_count_metric.labels(**lb).set(ok.get(k, 0))
+
+
+_last_inventory_at = 0.0
 
 
 def collect(vm):
@@ -529,6 +638,7 @@ def collect(vm):
 
     meta = {}
     site_tot, site_reach, site_rtr = {}, {}, {}
+    snapshot_rows = []
 
     for d in devices:
         host = d.get("host-name") or d.get("hostName") or "unknown"
@@ -555,6 +665,12 @@ def collect(vm):
             site_reach[key] = site_reach.get(key, 0) + 1
         if lb["device_role"] == "ROUTER":
             site_rtr[key] = site_rtr.get(key, 0) + 1
+        if vmanage_record:
+            snapshot_rows.append(vmanage_record(
+                dict(lb, serial=d.get("board-serial") or d.get("uuid") or ""),
+                version=d.get("version") or "",
+                reachability=reach,
+            ))
 
     for key, n in site_tot.items():
         sl = dict(zip(("region", "country", "site_id", "priority"), key))
@@ -663,23 +779,115 @@ def collect(vm):
         bgp_neighbors_up.labels(**lb).set(bgp_up.get(k, 0))
 
     # --- control connections ---------------------------------------------
+    # Root cause of a previous false-healthy count: state "connect" is the
+    # FSM trying to form a session, not an established control channel.
     data, path = first_working(vm, "control", CANDIDATES["control"])
-    ctrl = {}
+    ctrl_up, ctrl_tot = {}, {}
     for r in data:
         lb = lookup(r)
         if not lb:
             continue
-        if str(r.get("state", "")).lower() in ("up", "connect"):
-            k = tuple(sorted(lb.items()))
-            ctrl[k] = ctrl.get(k, 0) + 1
-    for k, n in ctrl.items():
-        control_connections_up.labels(**dict(k)).set(n)
+        state = str(r.get("state") or r.get("vstate") or "").lower()
+        up = 1.0 if state == "up" else 0.0
+        peer = r.get("peer") or r.get("system-ip") or r.get("peer-ip") or "unknown"
+        control_connection_up.labels(
+            peer=str(peer),
+            peer_type=str(r.get("peer-type") or r.get("type") or "unknown"),
+            local_color=str(r.get("local-color") or "unknown"),
+            remote_color=str(r.get("remote-color") or r.get("color") or "unknown"),
+            protocol=str(r.get("protocol") or r.get("proto") or "unknown"),
+            **lb,
+        ).set(up)
+        k = tuple(sorted(lb.items()))
+        ctrl_tot[k] = ctrl_tot.get(k, 0) + 1
+        ctrl_up[k] = ctrl_up.get(k, 0) + up
+    for k, n in ctrl_tot.items():
+        lb = dict(k)
+        control_connections_total.labels(**lb).set(n)
+        control_connections_up.labels(**lb).set(ctrl_up.get(k, 0))
+
+    # --- OSPF / EIGRP / TLOC / app-route --------------------------------
+    # These endpoints are version-specific. first_working records
+    # vmanage_endpoint_available so dashboards can show "data not available"
+    # instead of an empty table that looks like "everything is fine".
+    _collect_neighbor_table(
+        vm, "ospf", CANDIDATES["ospf"], lookup,
+        up_metric=ospf_neighbor_up, total_metric=ospf_neighbors_total,
+        up_count_metric=ospf_neighbors_up,
+        extra=lambda r: dict(
+            neighbor=str(r.get("neighbor") or r.get("nbr-id") or r.get("router-id") or "unknown"),
+            area=str(r.get("area") or r.get("area-id") or "unknown"),
+            ifname=str(r.get("ifname") or r.get("interface") or "unknown"),
+            state=str(r.get("state") or "unknown").lower(),
+        ),
+        is_up=lambda r: str(r.get("state") or "").lower() in ("full", "full/dr", "full/bdr", "full/drother"),
+    )
+    _collect_neighbor_table(
+        vm, "eigrp", CANDIDATES["eigrp"], lookup,
+        up_metric=eigrp_neighbor_up, total_metric=eigrp_neighbors_total,
+        up_count_metric=eigrp_neighbors_up,
+        extra=lambda r: dict(
+            neighbor=str(r.get("neighbor") or r.get("nbr") or r.get("peer") or "unknown"),
+            as_number=str(r.get("as") or r.get("as-number") or r.get("asn") or "unknown"),
+            ifname=str(r.get("ifname") or r.get("interface") or "unknown"),
+            state=str(r.get("state") or "unknown").lower(),
+        ),
+        is_up=lambda r: str(r.get("state") or "").lower() in ("up", "full", "established"),
+    )
+
+    data, path = first_working(vm, "tloc", CANDIDATES["tloc"])
+    tloc_tot, tloc_ok = {}, {}
+    for r in data:
+        lb = lookup(r)
+        if not lb:
+            continue
+        color = str(r.get("color") or r.get("tloc-color") or "unknown")
+        encap = str(r.get("encap") or r.get("encapsulation") or "unknown")
+        state = str(r.get("state") or r.get("operation-state") or "").lower()
+        up = 1.0 if state in ("up", "on") else 0.0
+        tloc_up.labels(color=color, encap=encap, **lb).set(up)
+        k = tuple(sorted(lb.items()))
+        tloc_tot[k] = tloc_tot.get(k, 0) + 1
+        tloc_ok[k] = tloc_ok.get(k, 0) + up
+    for k, n in tloc_tot.items():
+        lb = dict(k)
+        tloc_total.labels(**lb).set(n)
+        tloc_up_count.labels(**lb).set(tloc_ok.get(k, 0))
+
+    data, path = first_working(vm, "approute", CANDIDATES["approute"])
+    for r in data:
+        lb = lookup(r)
+        if not lb:
+            continue
+        al = dict(
+            lb,
+            remote_system_ip=str(r.get("remote-system-ip") or r.get("system-ip") or r.get("dst-ip") or "unknown"),
+            local_color=str(r.get("local-color") or "unknown"),
+            remote_color=str(r.get("remote-color") or r.get("color") or "unknown"),
+        )
+        lat = fnum(r.get("latency") or r.get("average-latency"))
+        jit = fnum(r.get("jitter") or r.get("average-jitter"))
+        loss = fnum(r.get("loss") or r.get("loss-percentage") or r.get("packet-loss"))
+        if lat is not None:
+            approute_latency_ms.labels(**al).set(lat)
+        if jit is not None:
+            approute_jitter_ms.labels(**al).set(jit)
+        if loss is not None:
+            approute_loss_percent.labels(**al).set(loss)
 
     collection_duration.observe(time.monotonic() - started)
     last_success.set(time.time())
     log.info("cycle complete: %d devices, %d sites in %.1fs",
              len(site_tot) and sum(site_tot.values()), len(site_tot),
              time.monotonic() - started)
+
+    global _last_inventory_at
+    if write_snapshot and snapshot_rows:
+        if (_last_inventory_at == 0.0
+                or (time.monotonic() - _last_inventory_at) >= INVENTORY_CYCLE):
+            path = write_snapshot("vmanage", snapshot_rows)
+            _last_inventory_at = time.monotonic()
+            log.info("wrote inventory snapshot %s (%d devices)", path, len(snapshot_rows))
     return True
 
 
@@ -692,7 +900,12 @@ def clear_all():
               bfd_session_up, bfd_sessions_total, bfd_sessions_up,
               bgp_neighbor_up, bgp_neighbor_state_info, bgp_prefixes_received,
               bgp_neighbors_total, bgp_neighbors_up,
-              control_connections_up, site_devices_total,
+              control_connections_up, control_connections_total, control_connection_up,
+              ospf_neighbor_up, ospf_neighbors_up, ospf_neighbors_total,
+              eigrp_neighbor_up, eigrp_neighbors_up, eigrp_neighbors_total,
+              tloc_up, tloc_total, tloc_up_count,
+              approute_latency_ms, approute_jitter_ms, approute_loss_percent,
+              site_devices_total,
               site_devices_reachable, site_routers_total):
         m.clear()
 

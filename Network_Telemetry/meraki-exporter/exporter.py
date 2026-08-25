@@ -30,6 +30,15 @@ import meraki
 import yaml
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
+_INV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "inventory")
+if os.path.isdir(_INV):
+    sys.path.insert(0, _INV)
+try:
+    from inventory_lib import meraki_record, write_snapshot
+except ImportError:
+    meraki_record = None  # type: ignore
+    write_snapshot = None  # type: ignore
+
 # ----------------------------------------------------------------------------
 # Configuration
 # ----------------------------------------------------------------------------
@@ -168,7 +177,12 @@ logging.getLogger("httpcore").setLevel(logging.WARNING)
 # brand new time series.
 # ----------------------------------------------------------------------------
 
-UPLINK_LABELS = ["org", "org_id", "network", "network_id", "serial", "uplink"]
+# region/country/site_id/device_name are required for Region → Site → Device
+# drill-down. They come from hostname parsing via the device serial, not from
+# Meraki (which has no site object). Without them the unified WAN recording
+# rules produced series that could not be filtered by site.
+UPLINK_LABELS = ["org", "org_id", "region", "country", "site_id", "priority",
+                 "network", "network_id", "device_name", "serial", "uplink"]
 
 sent_bps = Gauge(
     "meraki_uplink_sent_bytes_per_second",
@@ -200,6 +214,23 @@ latency_ms = Gauge(
     "Latency in milliseconds measured by Meraki to its cloud",
     UPLINK_LABELS,
 )
+jitter_ms = Gauge(
+    "meraki_uplink_jitter_milliseconds",
+    "Jitter in milliseconds. Only set when Meraki includes jitterMs in the "
+    "loss-and-latency timeseries; otherwise the series is absent (not zero).",
+    UPLINK_LABELS,
+)
+uplink_ip_info = Gauge(
+    "meraki_uplink_ip_info",
+    "1 per uplink, labelled with WAN IP and public IP when Meraki reports them",
+    UPLINK_LABELS + ["ip", "public_ip", "gateway"],
+)
+uplink_ha_info = Gauge(
+    "meraki_uplink_ha_info",
+    "1 per uplink, labelled with MX high-availability role when present "
+    "(active/spare). Absent when the appliance is not in HA.",
+    UPLINK_LABELS + ["ha_role", "ha_status"],
+)
 
 # Capacity is a METRIC, not a label -- label values are strings and cannot
 # participate in PromQL arithmetic. Joined at query time with on(serial,uplink).
@@ -223,7 +254,8 @@ SITE_LABELS = ["org", "org_id", "region", "country", "site_id", "priority"]
 
 device_up = Gauge(
     "meraki_device_up",
-    "1 if the device is online, 0 if offline or alerting",
+    "Device health: 1=online (HEALTHY), 0.5=alerting (WARNING), "
+    "0=offline/dormant (DOWN). Alerting is not treated as down.",
     DEVICE_LABELS,
 )
 device_status_info = Gauge(
@@ -568,6 +600,41 @@ def parse_device_name(name, org_id, network_name=""):
     return site_id, role_from_hostname(name), country, region, priority
 
 
+def uplink_identity(org_id, org_name, net_id, net_name, serial, meta):
+    """Build WAN labels that join to the rest of the estate on site_id.
+
+    Prefer the last device-health sweep (serial → hostname/site). Until that
+    sweep has run, fall back to parsing the Meraki network name.
+    """
+    known = (meta or {}).get(serial)
+    if known:
+        return dict(
+            org=org_name,
+            org_id=org_id,
+            region=known.get("region", "unknown"),
+            country=known.get("country", "unknown"),
+            site_id=known.get("site_id", "unknown"),
+            priority=known.get("priority", "P4"),
+            network=known.get("network") or net_name,
+            network_id=known.get("network_id") or net_id,
+            device_name=known.get("device_name") or serial,
+            serial=serial,
+        )
+    site_id, _role, country, region, priority = parse_device_name(net_name, org_id)
+    return dict(
+        org=org_name,
+        org_id=org_id,
+        region=region,
+        country=country,
+        site_id=site_id,
+        priority=priority,
+        network=net_name,
+        network_id=net_id,
+        device_name=net_name or serial,
+        serial=serial,
+    )
+
+
 DEVICE_STATUS_VALUE = {
     "online": 1.0,
     "alerting": 0.5,
@@ -634,6 +701,7 @@ def collect_org(
     org_id: str,
     org_name: str,
     capacity: Dict[str, Dict[str, Any]],
+    meta: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> None:
     cycle_start = time.monotonic()
     network_names: Dict[str, str] = {}
@@ -659,11 +727,7 @@ def collect_org(
                 serial = link.get("serial", "unknown")
                 iface = link.get("interface", "unknown")
                 labels = dict(
-                    org=org_name,
-                    org_id=org_id,
-                    network=net_name,
-                    network_id=net_id,
-                    serial=serial,
+                    **uplink_identity(org_id, org_name, net_id, net_name, serial, meta),
                     uplink=iface,
                 )
                 # The endpoint returns total bytes over the timespan, so divide
@@ -694,15 +758,28 @@ def collect_org(
                 iface = link.get("interface", "unknown")
                 state = (link.get("status") or "unknown").lower()
                 labels = dict(
-                    org=org_name,
-                    org_id=org_id,
-                    network=net_name,
-                    network_id=net_id,
-                    serial=serial,
+                    **uplink_identity(org_id, org_name, net_id, net_name, serial, meta),
                     uplink=iface,
                 )
                 uplink_status.labels(**labels).set(STATUS_VALUE.get(state, 0.0))
                 uplink_status_info.labels(status=state, **labels).set(1.0)
+                ip = str(link.get("ip") or link.get("address") or "")
+                public_ip = str(link.get("publicIp") or "")
+                gateway = str(link.get("gateway") or "")
+                if ip or public_ip:
+                    uplink_ip_info.labels(
+                        ip=ip or "unknown",
+                        public_ip=public_ip or "unknown",
+                        gateway=gateway or "unknown",
+                        **labels,
+                    ).set(1.0)
+                ha = link.get("highAvailability") or device.get("highAvailability") or {}
+                if isinstance(ha, dict) and (ha.get("role") or ha.get("status")):
+                    uplink_ha_info.labels(
+                        ha_role=str(ha.get("role") or "unknown"),
+                        ha_status=str(ha.get("status") or "unknown"),
+                        **labels,
+                    ).set(1.0)
 
     # --- 3. Loss and latency --------------------------------------------
     quality = call(
@@ -726,17 +803,16 @@ def collect_org(
                 continue
 
             labels = dict(
-                org=org_name,
-                org_id=org_id,
-                network=net_name,
-                network_id=net_id,
-                serial=serial,
+                **uplink_identity(org_id, org_name, net_id, net_name, serial, meta),
                 uplink=iface,
             )
             if point.get("lossPercent") is not None:
                 loss_percent.labels(**labels).set(float(point["lossPercent"]))
             if point.get("latencyMs") is not None:
                 latency_ms.labels(**labels).set(float(point["latencyMs"]))
+            jitter = point.get("jitterMs") or point.get("jitter")
+            if jitter is not None:
+                jitter_ms.labels(**labels).set(float(jitter))
 
     # --- 4. Bookkeeping --------------------------------------------------
     uplinks_discovered.labels(org_id=org_id).set(seen)
@@ -1128,6 +1204,7 @@ def collect_org_inventory(dashboard, org_id, org_name, meta):
     unassigned = {}
     totals = {}
     seen_sites = {}
+    snapshot_rows = []
 
     for dev in extract_items(inv):
         serial = dev.get("serial", "unknown")
@@ -1152,6 +1229,14 @@ def collect_org_inventory(dashboard, org_id, org_name, meta):
             device_name=name, serial=serial, model=model,
             product_type=ptype, firmware=fw, device_role=role,
         ).set(1.0 if net_id else 0.0)
+        if meraki_record:
+            rec_labels = dict(
+                region=region, country=country, site_id=site_id,
+                device_name=name, serial=serial, model=model,
+                product_type=ptype, device_role=role,
+                lan_ip=dev.get("lanIp") or dev.get("lan_ip") or "",
+            )
+            snapshot_rows.append(meraki_record(rec_labels, firmware=fw, assigned=bool(net_id)))
 
         by_model[(region, ptype, model)] = by_model.get((region, ptype, model), 0) + 1
         by_fw[(ptype, fw)] = by_fw.get((ptype, fw), 0) + 1
@@ -1179,6 +1264,10 @@ def collect_org_inventory(dashboard, org_id, org_name, meta):
     log.info("[%s] inventory sweep: %d devices, %d models, %d unassigned, in %.1fs",
              org_name, sum(totals.values()), len(by_model),
              sum(unassigned.values()), time.monotonic() - started)
+    if write_snapshot and snapshot_rows:
+        path = write_snapshot("meraki-%s" % org_id, snapshot_rows)
+        log.info("[%s] wrote inventory snapshot %s (%d devices)",
+                 org_name, path, len(snapshot_rows))
 
 
 def clear_capacity_metrics():
@@ -1214,6 +1303,9 @@ def clear_all_uplink_metrics() -> None:
         uplink_status_info,
         loss_percent,
         latency_ms,
+        jitter_ms,
+        uplink_ip_info,
+        uplink_ha_info,
     ):
         metric.clear()
 
@@ -1272,7 +1364,10 @@ def collection_loop(dashboard: meraki.DashboardAPI, orgs: List[Dict[str, str]], 
             if stop.is_set():
                 break
             try:
-                collect_org(dashboard, org["id"], org["name"], capacity)
+                collect_org(
+                    dashboard, org["id"], org["name"], capacity,
+                    meta_by_org.get(org["id"]) or {},
+                )
             except Exception:
                 log.exception("[%s] uplink cycle raised", org["name"])
 

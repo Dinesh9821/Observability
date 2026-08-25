@@ -1,41 +1,82 @@
 {
   "uid": "inventory-discovery",
-  "title": "Inventory & Discovery Dashboard",
-  "description": "What the estate contains, by site, across Meraki and Viptela. Discovery only -- no health thresholds. Unmapped Devices counts what monitoring cannot attribute to a site.",
+  "title": "2. Inventory",
+  "description": "Enterprise inventory and daily FROM/TO comparison. Not a live incident dashboard.",
   "tags": [
-    "inventory",
-    "discovery"
+    "network",
+    "l1",
+    "observability"
   ],
   "timezone": "browser",
   "editable": true,
   "graphTooltip": 1,
   "schemaVersion": 39,
-  "version": 1,
-  "refresh": "15m",
+  "version": 2,
+  "refresh": "5m",
   "time": {
     "from": "now-6h",
     "to": "now"
   },
   "timepicker": {
     "refresh_intervals": [
+      "1m",
       "5m",
       "15m",
       "30m",
       "1h"
-    ],
-    "time_options": [
-      "10m",
-      "30m",
-      "1h",
-      "6h",
-      "12h",
-      "24h",
-      "2d",
-      "7d"
     ]
   },
   "fiscalYearStartMonth": 0,
-  "links": [],
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Full Observability",
+      "tooltip": "",
+      "type": "link",
+      "url": "/d/complete-observability"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Inventory",
+      "tooltip": "",
+      "type": "link",
+      "url": "/d/inventory-discovery"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Meraki",
+      "tooltip": "",
+      "type": "link",
+      "url": "/d/meraki-operations"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "SD-WAN",
+      "tooltip": "",
+      "type": "link",
+      "url": "/d/sdwan-overlay"
+    }
+  ],
   "annotations": {
     "list": [
       {
@@ -111,18 +152,18 @@
         "allValue": ".*"
       },
       {
-        "name": "site",
+        "name": "site_id",
         "label": "Site ID",
         "type": "query",
         "datasource": {
           "type": "prometheus",
           "uid": "prometheus"
         },
-        "definition": "query_result(count by (site_id) (last_over_time(device_info{region=~\"$region\", country=~\"$country\"}[24h])))",
+        "definition": "query_result(count by (site_id) (last_over_time(device_info{region=~\"$region\",country=~\"$country\"}[24h])))",
         "query": {
           "qryType": 3,
-          "query": "query_result(count by (site_id) (last_over_time(device_info{region=~\"$region\", country=~\"$country\"}[24h])))",
-          "refId": "var-site"
+          "query": "query_result(count by (site_id) (last_over_time(device_info{region=~\"$region\",country=~\"$country\"}[24h])))",
+          "refId": "var-site_id"
         },
         "regex": "/site_id=\"([^\"]+)\"/",
         "multi": false,
@@ -139,20 +180,76 @@
         "allValue": ".*"
       },
       {
-        "name": "source",
-        "label": "Source",
+        "name": "device",
+        "label": "Device",
         "type": "query",
         "datasource": {
           "type": "prometheus",
           "uid": "prometheus"
         },
-        "definition": "query_result(count by (source) (last_over_time(device_info[24h])))",
+        "definition": "query_result(count by (device) (last_over_time(device_info{region=~\"$region\",country=~\"$country\",site_id=~\"$site_id\"}[24h])))",
         "query": {
           "qryType": 3,
-          "query": "query_result(count by (source) (last_over_time(device_info[24h])))",
-          "refId": "var-source"
+          "query": "query_result(count by (device) (last_over_time(device_info{region=~\"$region\",country=~\"$country\",site_id=~\"$site_id\"}[24h])))",
+          "refId": "var-device"
         },
-        "regex": "/source=\"([^\"]+)\"/",
+        "regex": "/device=\"([^\"]+)\"/",
+        "multi": false,
+        "includeAll": true,
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "hide": 0,
+        "options": [],
+        "allValue": ".*"
+      },
+      {
+        "name": "from_date",
+        "label": "From date",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "query_result(inventory_snapshot_date)",
+        "query": {
+          "qryType": 3,
+          "query": "query_result(inventory_snapshot_date)",
+          "refId": "var-from_date"
+        },
+        "regex": "/snapshot_date=\"([^\"]+)\"/",
+        "multi": false,
+        "includeAll": true,
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "hide": 0,
+        "options": [],
+        "allValue": ".*"
+      },
+      {
+        "name": "to_date",
+        "label": "To date",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "query_result(inventory_snapshot_date)",
+        "query": {
+          "qryType": 3,
+          "query": "query_result(inventory_snapshot_date)",
+          "refId": "var-to_date"
+        },
+        "regex": "/snapshot_date=\"([^\"]+)\"/",
         "multi": false,
         "includeAll": true,
         "current": {
@@ -170,6 +267,23 @@
   },
   "panels": [
     {
+      "id": 900,
+      "type": "row",
+      "title": "Live inventory (today's collector view)",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "panels": [],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
+    },
+    {
       "id": 1,
       "type": "stat",
       "title": "Devices",
@@ -177,11 +291,12 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "",
       "gridPos": {
-        "h": 5,
-        "w": 3,
+        "h": 4,
+        "w": 4,
         "x": 0,
-        "y": 0
+        "y": 1
       },
       "fieldConfig": {
         "defaults": {
@@ -219,8 +334,8 @@
         "showPercentChange": false,
         "percentChangeColorMode": "standard",
         "text": {
-          "titleSize": 13,
-          "valueSize": 32
+          "titleSize": 12,
+          "valueSize": 28
         }
       },
       "targets": [
@@ -230,10 +345,10 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "count(device_info{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", source=~\"$source\"})",
+          "expr": "count(device_info{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", device=~\"$device\"})",
           "refId": "A",
-          "range": true,
-          "instant": false
+          "range": false,
+          "instant": true
         }
       ]
     },
@@ -245,11 +360,12 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "",
       "gridPos": {
-        "h": 5,
-        "w": 3,
-        "x": 3,
-        "y": 0
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
       },
       "fieldConfig": {
         "defaults": {
@@ -287,8 +403,8 @@
         "showPercentChange": false,
         "percentChangeColorMode": "standard",
         "text": {
-          "titleSize": 13,
-          "valueSize": 32
+          "titleSize": 12,
+          "valueSize": 28
         }
       },
       "targets": [
@@ -298,10 +414,10 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "count(device_info{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", source=~\"$source\", source=\"meraki\"}) or vector(0)",
+          "expr": "count(device_info{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", device=~\"$device\", source=\"meraki\"}) or vector(0)",
           "refId": "A",
-          "range": true,
-          "instant": false
+          "range": false,
+          "instant": true
         }
       ]
     },
@@ -313,11 +429,12 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "",
       "gridPos": {
-        "h": 5,
-        "w": 3,
-        "x": 6,
-        "y": 0
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
       },
       "fieldConfig": {
         "defaults": {
@@ -355,8 +472,8 @@
         "showPercentChange": false,
         "percentChangeColorMode": "standard",
         "text": {
-          "titleSize": 13,
-          "valueSize": 32
+          "titleSize": 12,
+          "valueSize": 28
         }
       },
       "targets": [
@@ -366,10 +483,10 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "count(device_info{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", source=~\"$source\", source=\"vmanage\"}) or vector(0)",
+          "expr": "count(device_info{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", device=~\"$device\", source=\"vmanage\"}) or vector(0)",
           "refId": "A",
-          "range": true,
-          "instant": false
+          "range": false,
+          "instant": true
         }
       ]
     },
@@ -381,11 +498,12 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "",
       "gridPos": {
-        "h": 5,
-        "w": 3,
-        "x": 9,
-        "y": 0
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
       },
       "fieldConfig": {
         "defaults": {
@@ -423,8 +541,8 @@
         "showPercentChange": false,
         "percentChangeColorMode": "standard",
         "text": {
-          "titleSize": 13,
-          "valueSize": 32
+          "titleSize": 12,
+          "valueSize": 28
         }
       },
       "targets": [
@@ -434,234 +552,27 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "count(count by (site_id) (device_info{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", source=~\"$source\"}))",
+          "expr": "count(count by (site_id) (device_info{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\"}))",
           "refId": "A",
-          "range": true,
-          "instant": false
+          "range": false,
+          "instant": true
         }
       ]
     },
     {
       "id": 5,
       "type": "stat",
-      "title": "Models",
+      "title": "Unmapped",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "",
       "gridPos": {
-        "h": 5,
-        "w": 3,
-        "x": 12,
-        "y": 0
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "blue",
-                "value": null
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "wideLayout": true,
-        "showPercentChange": false,
-        "percentChangeColorMode": "standard",
-        "text": {
-          "titleSize": 13,
-          "valueSize": 32
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "count(count by (model) (device_info{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", source=~\"$source\"}))",
-          "refId": "A",
-          "range": true,
-          "instant": false
-        }
-      ]
-    },
-    {
-      "id": 6,
-      "type": "stat",
-      "title": "Routers",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 3,
-        "x": 15,
-        "y": 0
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "blue",
-                "value": null
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "wideLayout": true,
-        "showPercentChange": false,
-        "percentChangeColorMode": "standard",
-        "text": {
-          "titleSize": 13,
-          "valueSize": 32
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "count(device_info{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", source=~\"$source\", role=~\"ROUTER|SD|ASD\"}) or vector(0)",
-          "refId": "A",
-          "range": true,
-          "instant": false
-        }
-      ]
-    },
-    {
-      "id": 7,
-      "type": "stat",
-      "title": "Claimed Not Deployed",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 3,
-        "x": 18,
-        "y": 0
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "blue",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 50
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "wideLayout": true,
-        "showPercentChange": false,
-        "percentChangeColorMode": "standard",
-        "text": {
-          "titleSize": 13,
-          "valueSize": 32
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum(last_over_time(meraki_inventory_unassigned_total[1h])) or vector(0)",
-          "refId": "A",
-          "range": true,
-          "instant": false
-        }
-      ]
-    },
-    {
-      "id": 8,
-      "type": "stat",
-      "title": "Unmapped Devices",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 3,
-        "x": 21,
-        "y": 0
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
       },
       "fieldConfig": {
         "defaults": {
@@ -677,10 +588,6 @@
               {
                 "color": "orange",
                 "value": 1
-              },
-              {
-                "color": "red",
-                "value": 50
               }
             ]
           },
@@ -707,8 +614,8 @@
         "showPercentChange": false,
         "percentChangeColorMode": "standard",
         "text": {
-          "titleSize": 13,
-          "valueSize": 32
+          "titleSize": 12,
+          "valueSize": 28
         }
       },
       "targets": [
@@ -720,253 +627,94 @@
           "editorMode": "code",
           "expr": "count(device_info{site_id=\"unknown\"}) or vector(0)",
           "refId": "A",
-          "range": true,
-          "instant": false
+          "range": false,
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Claimed not deployed",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(meraki_inventory_unassigned_total) or vector(0)",
+          "refId": "A",
+          "range": false,
+          "instant": true
         }
       ]
     },
     {
       "id": 10,
-      "type": "bargauge",
-      "title": "Devices by model",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "Model spread drives sparing policy and refresh planning.",
-      "gridPos": {
-        "h": 11,
-        "w": 8,
-        "x": 0,
-        "y": 5
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "min": 0,
-          "max": null,
-          "decimals": 1,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "blue",
-                "value": null
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "displayMode": "basic",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "valueMode": "color",
-        "namePlacement": "left",
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "maxVizHeight": 300,
-        "sizing": "auto",
-        "legend": {
-          "showLegend": false,
-          "displayMode": "list",
-          "placement": "bottom",
-          "calcs": []
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sort_desc(count by (model) (device_info{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", source=~\"$source\"}))",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{model}}"
-        }
-      ]
-    },
-    {
-      "id": 11,
-      "type": "bargauge",
-      "title": "Devices by role",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "Role is taken from the hostname convention.",
-      "gridPos": {
-        "h": 11,
-        "w": 8,
-        "x": 8,
-        "y": 5
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "min": 0,
-          "max": null,
-          "decimals": 1,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "blue",
-                "value": null
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "displayMode": "basic",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "valueMode": "color",
-        "namePlacement": "left",
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "maxVizHeight": 300,
-        "sizing": "auto",
-        "legend": {
-          "showLegend": false,
-          "displayMode": "list",
-          "placement": "bottom",
-          "calcs": []
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sort_desc(count by (role) (device_info{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", source=~\"$source\"}))",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{role}}"
-        }
-      ]
-    },
-    {
-      "id": 12,
-      "type": "bargauge",
-      "title": "Firmware versions",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "A long tail is firmware drift: many versions in production means inconsistent behaviour and a wider vulnerability surface.",
-      "gridPos": {
-        "h": 11,
-        "w": 8,
-        "x": 16,
-        "y": 5
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "min": 0,
-          "max": null,
-          "decimals": 1,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "blue",
-                "value": null
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "displayMode": "basic",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "valueMode": "color",
-        "namePlacement": "left",
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "maxVizHeight": 300,
-        "sizing": "auto",
-        "legend": {
-          "showLegend": false,
-          "displayMode": "list",
-          "placement": "bottom",
-          "calcs": []
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sort_desc(sum by (firmware) (last_over_time(meraki_inventory_by_firmware[1h])))",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{firmware}}"
-        }
-      ]
-    },
-    {
-      "id": 20,
       "type": "table",
-      "title": "Full inventory by site",
+      "title": "Site / device inventory",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Every device at the selected scope from both platforms, with the richest identity each vendor exposes. Filterable on every column.",
+      "description": "Daily snapshots are written by the exporters. Use From/To for the delta below.",
       "gridPos": {
-        "h": 14,
+        "h": 12,
         "w": 24,
         "x": 0,
-        "y": 16
+        "y": 5
       },
       "fieldConfig": {
         "defaults": {
@@ -989,89 +737,20 @@
             ]
           }
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Status"
-            },
-            "properties": [
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "0": {
-                        "text": "Down",
-                        "color": "red",
-                        "index": 0
-                      },
-                      "0.5": {
-                        "text": "Alerting",
-                        "color": "orange",
-                        "index": 1
-                      },
-                      "1": {
-                        "text": "Up",
-                        "color": "green",
-                        "index": 2
-                      }
-                    }
-                  }
-                ]
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "red",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 0.5
-                    },
-                    {
-                      "color": "green",
-                      "value": 1
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.width",
-                "value": 100
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "options": {
         "showHeader": true,
         "cellHeight": "sm",
         "footer": {
-          "show": true,
+          "show": false,
           "reducer": [
-            "count"
+            "sum"
           ],
-          "countRows": true,
+          "countRows": false,
           "fields": ""
         },
-        "sortBy": [
-          {
-            "desc": false,
-            "displayName": "Device"
-          }
-        ]
+        "sortBy": []
       },
       "targets": [
         {
@@ -1080,7 +759,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "device_info{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", source=~\"$source\"}",
+          "expr": "device_info{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", device=~\"$device\"}",
           "refId": "A",
           "range": false,
           "instant": true,
@@ -1095,30 +774,32 @@
               "Time": true,
               "__name__": true,
               "job": true,
-              "instance": true
+              "instance": true,
+              "environment": true,
+              "platform": true,
+              "resolution_s": true
             },
             "renameByName": {
               "device": "Device",
               "site_id": "Site",
               "region": "Region",
               "country": "Country",
-              "priority": "Prio",
               "model": "Model",
               "type": "Type",
               "role": "Role",
               "ident": "Serial / System-IP",
-              "source": "Managed By",
+              "source": "Platform",
               "Value": "Status"
             },
             "indexByName": {
-              "site_id": 0,
-              "device": 1,
-              "role": 2,
-              "model": 3,
+              "region": 0,
+              "country": 1,
+              "site_id": 2,
+              "device": 3,
               "type": 4,
-              "source": 5,
+              "model": 5,
               "ident": 6,
-              "priority": 7,
+              "source": 7,
               "Value": 8
             }
           }
@@ -1126,18 +807,320 @@
       ]
     },
     {
-      "id": 30,
-      "type": "table",
-      "title": "Sites \u2014 device counts by platform",
+      "id": 901,
+      "type": "row",
+      "title": "Daily delta \u2014 select From date and To date",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "panels": [],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
+    },
+    {
+      "id": 20,
+      "type": "stat",
+      "title": "Added",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "",
       "gridPos": {
-        "h": 10,
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 18
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "inventory_delta_count{from_date=~\"$from_date\", to_date=~\"$to_date\", change=\"added\"} or vector(0)",
+          "refId": "A",
+          "range": false,
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "type": "stat",
+      "title": "Removed",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 18
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "inventory_delta_count{from_date=~\"$from_date\", to_date=~\"$to_date\", change=\"removed\"} or vector(0)",
+          "refId": "A",
+          "range": false,
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "type": "stat",
+      "title": "Changed",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 18
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "inventory_delta_count{from_date=~\"$from_date\", to_date=~\"$to_date\", change=\"changed\"} or vector(0)",
+          "refId": "A",
+          "range": false,
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "type": "stat",
+      "title": "Unchanged",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Consecutive snapshot dates are precomputed. For arbitrary dates call http://inventory-exporter:9825/delta?from=YYYY-MM-DD&to=YYYY-MM-DD",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 18
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "inventory_delta_count{from_date=~\"$from_date\", to_date=~\"$to_date\", change=\"unchanged\"} or vector(0)",
+          "refId": "A",
+          "range": false,
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "type": "table",
+      "title": "Delta detail (added / removed / changed attributes)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "CHANGED rows show the actual before \u2192 after value. Unchanged devices are counted, not listed.",
+      "gridPos": {
+        "h": 12,
         "w": 24,
         "x": 0,
-        "y": 30
+        "y": 22
       },
       "fieldConfig": {
         "defaults": {
@@ -1166,19 +1149,14 @@
         "showHeader": true,
         "cellHeight": "sm",
         "footer": {
-          "show": true,
+          "show": false,
           "reducer": [
             "sum"
           ],
           "countRows": false,
           "fields": ""
         },
-        "sortBy": [
-          {
-            "desc": true,
-            "displayName": "Devices"
-          }
-        ]
+        "sortBy": []
       },
       "targets": [
         {
@@ -1187,7 +1165,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "count by (region, country, site_id, priority, source) (device_info{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", source=~\"$source\"})",
+          "expr": "inventory_delta{from_date=~\"$from_date\", to_date=~\"$to_date\", region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", device=~\"$device\"}",
           "refId": "A",
           "range": false,
           "instant": true,
@@ -1202,23 +1180,30 @@
               "Time": true,
               "__name__": true,
               "job": true,
-              "instance": true
+              "instance": true,
+              "environment": true,
+              "platform": true,
+              "resolution_s": true
             },
             "renameByName": {
-              "region": "Region",
-              "country": "Country",
+              "device": "Device",
               "site_id": "Site",
-              "priority": "Prio",
-              "source": "Managed By",
-              "Value": "Devices"
+              "change": "Change",
+              "attribute": "Attribute",
+              "previous": "Previous",
+              "current": "Current",
+              "source": "Platform",
+              "ident": "Ident",
+              "Value": " "
             },
             "indexByName": {
-              "region": 0,
-              "country": 1,
-              "site_id": 2,
-              "priority": 3,
-              "source": 4,
-              "Value": 5
+              "change": 0,
+              "site_id": 1,
+              "device": 2,
+              "attribute": 3,
+              "previous": 4,
+              "current": 5,
+              "source": 6
             }
           }
         }

@@ -1,0 +1,94 @@
+# Network observability stack.
+# Build context is this directory (Network_Telemetry/) so images can share inventory_lib.py.
+#
+#   cp .env.example .env   # then edit secrets
+#   docker compose up -d --build
+
+services:
+  meraki-exporter:
+    build:
+      context: .
+      dockerfile: meraki-exporter/Dockerfile
+    env_file: .env
+    environment:
+      EXPORTER_PORT: "9822"
+      SITES_FILE: /config/sites.json
+      CAPACITY_FILE: /config/capacity.yml
+      INVENTORY_SNAPSHOT_DIR: /var/lib/network-telemetry/inventory
+    volumes:
+      - ./meraki-exporter/sites.json:/config/sites.json:ro
+      - ./meraki-exporter/capacity.yml:/config/capacity.yml:ro
+      - inventory-data:/var/lib/network-telemetry/inventory
+    ports:
+      - "9822:9822"
+    restart: unless-stopped
+
+  vmanage-exporter:
+    build:
+      context: .
+      dockerfile: vmanage-exporter/Dockerfile
+    env_file: .env
+    environment:
+      EXPORTER_PORT: "9823"
+      SITES_FILE: /config/sites.json
+      INVENTORY_SNAPSHOT_DIR: /var/lib/network-telemetry/inventory
+    volumes:
+      - ./meraki-exporter/sites.json:/config/sites.json:ro
+      - inventory-data:/var/lib/network-telemetry/inventory
+    ports:
+      - "9823:9823"
+    restart: unless-stopped
+
+  inventory-exporter:
+    build:
+      context: .
+      dockerfile: inventory/Dockerfile
+    environment:
+      EXPORTER_PORT: "9824"
+      INVENTORY_API_PORT: "9825"
+      INVENTORY_SNAPSHOT_DIR: /var/lib/network-telemetry/inventory
+    volumes:
+      - inventory-data:/var/lib/network-telemetry/inventory
+    ports:
+      - "9824:9824"
+      - "9825:9825"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+      - --web.enable-lifecycle
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - meraki-exporter
+      - vmanage-exporter
+      - inventory-exporter
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    env_file: .env
+    environment:
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  inventory-data:
+  prometheus-data:
+  grafana-data:

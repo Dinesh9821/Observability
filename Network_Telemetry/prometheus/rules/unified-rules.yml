@@ -27,7 +27,7 @@ groups:
           max by (region, country, site_id, priority, device, link) (
             label_replace(
               label_replace(meraki_uplink_received_bytes_per_second * 8,
-                            "device", "$1", "network", "(.*)"),
+                            "device", "$1", "device_name", "(.*)"),
               "link", "$1", "uplink", "(.*)")
           )
         labels: {source: meraki}
@@ -50,7 +50,7 @@ groups:
           max by (region, country, site_id, priority, device, link) (
             label_replace(
               label_replace(meraki_uplink_sent_bytes_per_second * 8,
-                            "device", "$1", "network", "(.*)"),
+                            "device", "$1", "device_name", "(.*)"),
               "link", "$1", "uplink", "(.*)")
           )
         labels: {source: meraki}
@@ -80,7 +80,7 @@ groups:
           max by (region, country, site_id, priority, device, link) (
             label_replace(
               label_replace(meraki_uplink_status,
-                            "device", "$1", "network", "(.*)"),
+                            "device", "$1", "device_name", "(.*)"),
               "link", "$1", "uplink", "(.*)")
           )
         labels: {source: meraki}
@@ -108,9 +108,9 @@ groups:
             label_replace(
               label_replace(
                 meraki_uplink_capacity_bits_per_second
-                  * on (serial, uplink) group_left (network)
+                  * on (serial, uplink) group_left (network, device_name)
                     (meraki_uplink_sent_bytes_per_second * 0 + 1),
-                "device", "$1", "network", "(.*)"),
+                "device", "$1", "device_name", "(.*)"),
               "link", "$1", "uplink", "(.*)")
           )
         labels: {source: meraki, basis: cir}
@@ -250,3 +250,150 @@ groups:
       - record: overlay_sessions_total
         expr: sum by (region, country, site_id) (vmanage_bgp_neighbors_total)
         labels: {protocol: bgp}
+      - record: overlay_sessions_up
+        expr: sum by (region, country, site_id) (vmanage_ospf_neighbors_up)
+        labels: {protocol: ospf}
+      - record: overlay_sessions_total
+        expr: sum by (region, country, site_id) (vmanage_ospf_neighbors_total)
+        labels: {protocol: ospf}
+      - record: overlay_sessions_up
+        expr: sum by (region, country, site_id) (vmanage_eigrp_neighbors_up)
+        labels: {protocol: eigrp}
+      - record: overlay_sessions_total
+        expr: sum by (region, country, site_id) (vmanage_eigrp_neighbors_total)
+        labels: {protocol: eigrp}
+
+  # =======================================================================
+  # WAN quality (only where the vendor actually measures it)
+  # =======================================================================
+  - name: unified_wan_quality
+    interval: 60s
+    rules:
+      - record: wan_link_loss_percent
+        expr: |
+          max by (region, country, site_id, priority, device, link) (
+            label_replace(
+              label_replace(meraki_uplink_loss_percent,
+                            "device", "$1", "device_name", "(.*)"),
+              "link", "$1", "uplink", "(.*)")
+          )
+        labels: {source: meraki}
+      - record: wan_link_loss_percent
+        expr: |
+          max by (region, country, site_id, priority, device, link) (
+            label_replace(
+              label_replace(vmanage_approute_loss_percent,
+                            "device", "$1", "hostname", "(.*)"),
+              "link", "$1", "local_color", "(.*)")
+          )
+        labels: {source: vmanage}
+      - record: wan_link_latency_ms
+        expr: |
+          max by (region, country, site_id, priority, device, link) (
+            label_replace(
+              label_replace(meraki_uplink_latency_milliseconds,
+                            "device", "$1", "device_name", "(.*)"),
+              "link", "$1", "uplink", "(.*)")
+          )
+        labels: {source: meraki}
+      - record: wan_link_latency_ms
+        expr: |
+          max by (region, country, site_id, priority, device, link) (
+            label_replace(
+              label_replace(vmanage_approute_latency_milliseconds,
+                            "device", "$1", "hostname", "(.*)"),
+              "link", "$1", "local_color", "(.*)")
+          )
+        labels: {source: vmanage}
+      - record: wan_link_jitter_ms
+        expr: |
+          max by (region, country, site_id, priority, device, link) (
+            label_replace(
+              label_replace(meraki_uplink_jitter_milliseconds,
+                            "device", "$1", "device_name", "(.*)"),
+              "link", "$1", "uplink", "(.*)")
+          )
+        labels: {source: meraki}
+      - record: wan_link_jitter_ms
+        expr: |
+          max by (region, country, site_id, priority, device, link) (
+            label_replace(
+              label_replace(vmanage_approute_jitter_milliseconds,
+                            "device", "$1", "hostname", "(.*)"),
+              "link", "$1", "local_color", "(.*)")
+          )
+        labels: {source: vmanage}
+
+  # =======================================================================
+  # Explainable site health score
+  #
+  # Starts at 100. Deductions (clamped 0–100):
+  #   all devices down                          → 0 (CRITICAL)
+  #   any device down                           −40
+  #   any WAN link down                         −30
+  #   packet loss ≥ 5%                          −25
+  #   packet loss ≥ 2%                          −15
+  #   latency ≥ 200 ms                          −20
+  #   latency ≥ 100 ms                          −10
+  #   BFD session down (SD-WAN sites only)      −15
+  #   OMP session down                          −20
+  #   WAN utilisation ≥ 95%                     −10
+  #
+  # Status band:
+  #   100           HEALTHY
+  #   80–99         WARNING
+  #   60–79         DEGRADED
+  #   < 60          CRITICAL
+  # =======================================================================
+  - name: site_health_score
+    interval: 60s
+    rules:
+      - record: site_wan_up_ratio
+        expr: |
+          (
+            sum by (region, country, site_id) (wan_link_up > 0)
+            /
+            (count by (region, country, site_id) (wan_link_up) > 0)
+          )
+      - record: site_health_score
+        expr: |
+          clamp_min(
+            100
+            - 100 * clamp_max((site_devices_up:all == 0) * (site_devices_total:all > 0), 1)
+            - 40 * clamp_max((site_devices_total:all - site_devices_up:all) > 0, 1)
+            - 30 * clamp_max(
+                (count by (region, country, site_id) (wan_link_up == 0) > 0), 1)
+            - 15 * clamp_max(
+                (max by (region, country, site_id) (wan_link_loss_percent) >= 2), 1)
+            - 10 * clamp_max(
+                (max by (region, country, site_id) (wan_link_loss_percent) >= 5), 1)
+            - 10 * clamp_max(
+                (max by (region, country, site_id) (wan_link_latency_ms) >= 100), 1)
+            - 10 * clamp_max(
+                (max by (region, country, site_id) (wan_link_latency_ms) >= 200), 1)
+            - 15 * clamp_max(
+                ((sum by (region, country, site_id) (overlay_sessions_total{protocol="bfd"})
+                  - sum by (region, country, site_id) (overlay_sessions_up{protocol="bfd"})) > 0), 1)
+            - 20 * clamp_max(
+                ((sum by (region, country, site_id) (overlay_sessions_total{protocol="omp"})
+                  - sum by (region, country, site_id) (overlay_sessions_up{protocol="omp"})) > 0), 1)
+            - 10 * clamp_max(
+                (max by (region, country, site_id) (wan_link_utilization_percent) >= 95), 1),
+            0)
+
+      # 3 HEALTHY, 2 WARNING, 1 DEGRADED, 0 CRITICAL
+      - record: site_health_status
+        expr: |
+          (site_health_score >= 100) * 3
+          + (site_health_score >= 80) * (site_health_score < 100) * 2
+          + (site_health_score >= 60) * (site_health_score < 80) * 1
+
+      - record: network_health_percent
+        expr: avg(site_health_score)
+      - record: device_health_percent
+        expr: |
+          100 * sum(site_devices_up:all) / (sum(site_devices_total:all) > 0)
+      - record: wan_health_percent
+        expr: |
+          100 * sum(wan_link_up > 0) / (count(wan_link_up) > 0)
+

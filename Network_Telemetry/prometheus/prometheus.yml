@@ -31,3 +31,12 @@ scrape_configs:
         labels:
           source: vmanage
           resolution_s: '60'
+
+  - job_name: inventory
+    scrape_interval: 60s
+    scrape_timeout: 15s
+    static_configs:
+      - targets: ['inventory-exporter:9824']
+        labels:
+          source: inventory
+          resolution_s: '60'

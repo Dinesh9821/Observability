@@ -11,8 +11,8 @@ WORKDIR /app
 # which reads like an intermittent API problem rather than a filesystem one.
 RUN groupadd -r exporter \
  && useradd -r -g exporter -m -d /home/exporter -s /usr/sbin/nologin exporter \
- && mkdir -p /home/exporter/.cache /home/exporter/.config \
- && chown -R exporter:exporter /home/exporter \
+ && mkdir -p /home/exporter/.cache /home/exporter/.config /var/lib/network-telemetry/inventory \
+ && chown -R exporter:exporter /home/exporter /var/lib/network-telemetry \
  && chmod -R 700 /home/exporter
 
 ENV HOME=/home/exporter \
@@ -20,15 +20,11 @@ ENV HOME=/home/exporter \
     XDG_CONFIG_HOME=/home/exporter/.config \
     PYTHONDONTWRITEBYTECODE=1
 
-COPY requirements.txt .
+COPY meraki-exporter/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# COPY preserves the SOURCE file's permissions. If exporter.py is 0600 on the
-# build host (common after unzipping, or under a restrictive umask), the
-# non-root runtime user cannot read its own program and the container
-# crash-loops. Setting mode explicitly makes the image independent of host
-# permissions.
-COPY --chmod=0644 exporter.py .
+COPY --chmod=0644 meraki-exporter/exporter.py .
+COPY --chmod=0644 inventory/inventory_lib.py .
 
 USER exporter
 EXPOSE 9822
