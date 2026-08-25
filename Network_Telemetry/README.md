@@ -106,4 +106,4 @@ docker compose up -d --build
 # Grafana http://localhost:3000  (admin / value of GF_SECURITY_ADMIN_PASSWORD)
 ```
 
-See DEPLOYMENT.md for non-compose (systemd) installs.
+See DEPLOYMENT.md for non-compose (systemd) installs, including a **blank Red Hat server from zero**.
