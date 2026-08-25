@@ -110,6 +110,115 @@ sudo dnf -y install python3.11 python3.11-pip python3.11-devel
 sudo alternatives --set python3 /usr/bin/python3.11 || true
 ```
 
+### 0.4-norepo — `dnf` fails: not registered / no repositories
+
+**Root cause:** this is a RHEL entitlements problem, not an application bug.
+
+```
+This system is not registered with an entitlement server
+Error: There are no enabled repositories in "/etc/yum.repos.d"
+```
+
+`dnf` / `yum` can install **nothing** until either:
+
+1. You register the host (`subscription-manager register --auto-attach`), **or**
+2. You attach the host to Satellite / an activation key, **or**
+3. You mount a RHEL ISO and enable it as a local repo, **or**
+4. You **skip dnf entirely** and use upstream tarballs (below).
+
+Do **not** keep retrying `dnf install python3`. It will fail the same way.
+
+#### Option A — register RHEL (correct if you have a subscription)
+
+```bash
+sudo subscription-manager register --username <redhat_login> --auto-attach
+sudo subscription-manager repos --list-enabled
+sudo dnf -y install python3 python3-pip python3-devel gcc curl tar firewalld wget
+```
+
+Then continue from section 0.5.
+
+#### Option B — no subscription: use what is already on the box + tarballs
+
+RHEL images usually already have `python3`, `curl`, and `tar`. Confirm:
+
+```bash
+python3 --version
+command -v curl tar python3
+ls /opt/network-telemetry/meraki-exporter/exporter.py
+```
+
+`python3` must be **3.8 or newer**. If it is 3.6, you cannot use Option B without a registered repo or a standalone Python build.
+
+Install pip **without dnf**:
+
+```bash
+python3 -m ensurepip --upgrade || true
+curl -sS https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
+sudo python3 /tmp/get-pip.py
+```
+
+**gcc / python3-devel / firewalld are optional.** On x86_64, `pip` usually installs pre-built wheels for `prometheus-client`, `PyYAML`, and `meraki`. If pip later errors on compiling a wheel, you must register the host (Option A) or install those RPMs from a RHEL ISO.
+
+Continue 0.5–0.8 as written.
+
+For **Prometheus**, keep section 0.9 (GitHub tarball). That never used `dnf`.
+
+For **Grafana**, do **not** use the Grafana yum repo (it still needs OS libraries from RHEL). Use the Grafana **tarball**:
+
+```bash
+cd /tmp
+VER=11.2.0
+curl -LO https://dl.grafana.com/oss/release/grafana-${VER}.linux-amd64.tar.gz
+sudo mkdir -p /opt/grafana /var/lib/grafana /var/log/grafana /etc/grafana/provisioning/datasources /etc/grafana/provisioning/dashboards
+sudo tar -C /opt --strip-components=1 -xzf grafana-${VER}.linux-amd64.tar.gz
+# The tarball extracts to grafana-v11.2.0/; if --strip-components fails, use:
+# sudo tar -C /tmp -xzf grafana-${VER}.linux-amd64.tar.gz
+# sudo rsync -a /tmp/grafana-v${VER}/ /opt/grafana/
+```
+
+Safer extract (works even if the directory name includes a `v`):
+
+```bash
+cd /tmp
+VER=11.2.0
+curl -LO https://dl.grafana.com/oss/release/grafana-${VER}.linux-amd64.tar.gz
+rm -rf /tmp/grafana-extract && mkdir /tmp/grafana-extract
+tar -C /tmp/grafana-extract -xzf grafana-${VER}.linux-amd64.tar.gz
+sudo rm -rf /opt/grafana
+sudo mv /tmp/grafana-extract/grafana-v${VER} /opt/grafana
+sudo mkdir -p /var/lib/grafana /var/log/grafana \
+  /etc/grafana/provisioning/datasources /etc/grafana/provisioning/dashboards
+sudo useradd --system --home /usr/share/grafana --shell /sbin/nologin grafana || true
+sudo cp /opt/network-telemetry/deploy/grafana-custom.ini /opt/grafana/conf/custom.ini
+sudo cp /opt/network-telemetry/deploy/grafana-datasource-localhost.yml \
+  /etc/grafana/provisioning/datasources/prometheus.yml
+sudo cp /opt/network-telemetry/grafana/provisioning/dashboards/dashboards.yml \
+  /etc/grafana/provisioning/dashboards/dashboards.yml
+sudo cp /opt/network-telemetry/grafana/provisioning/dashboards/0*.json \
+  /etc/grafana/provisioning/dashboards/
+sudo cp /opt/network-telemetry/deploy/systemd/grafana.service /etc/systemd/system/
+sudo chown -R grafana:grafana /opt/grafana /var/lib/grafana /var/log/grafana /etc/grafana
+```
+
+Skip section 0.10 (`dnf install grafana`). Start Grafana with:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now grafana
+sudo /opt/grafana/bin/grafana cli --homepath /opt/grafana admin reset-admin-password 'PickAStrongPassword'
+```
+
+Open port 3000 without firewalld if `firewall-cmd` is missing:
+
+```bash
+# If firewalld is not installed, either leave the port open or use iptables/nft.
+# Example nft (only if you already use nftables):
+# sudo nft add rule inet filter input tcp dport 3000 accept
+```
+
+Then continue from 0.12 (`systemctl enable --now meraki-exporter ...`). Use `grafana` as the unit name, not `grafana-server`.
+
 ### 0.5 Users and directories
 
 ```bash
@@ -160,9 +269,8 @@ sudo cp $SRC/deploy/systemd/prometheus.service /etc/systemd/system/
 - `capacity.yml` — contracted circuit speeds (placeholders until you fill real CIR)
 - `prometheus-localhost.yml` — scrape exporters on this same server
 - `rules/*.yml` — health score, WAN rollups, alerts
-- Grafana datasource JSON — dashboards query `http://127.0.0.1:9090`
-- `0*.json` — Full Observability, Inventory, Meraki, SD-WAN
-- `*.service` — systemd unit files
+- `*.service` — systemd unit files for exporters + Prometheus
+- Grafana JSON is copied in **0.10**, after the Grafana RPM is installed
 
 ### 0.7 Fill secrets
 
