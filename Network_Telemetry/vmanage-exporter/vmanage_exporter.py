@@ -603,6 +603,24 @@ CANDIDATES = {
 REACH_VALUE = {"reachable": 1.0, "staging": 0.5, "unreachable": 0.0}
 
 
+def vpn_id_of(row):
+    """Normalise VPN id. Empty vpn-id must not stay '' — that breaks vpn_id=\"0\" rules."""
+    raw = row.get("vpn-id")
+    if raw is None or raw == "":
+        raw = row.get("vpnId")
+    if raw is None or raw == "":
+        raw = row.get("vpn")
+    if raw is None or str(raw).strip() in ("", "none", "None"):
+        color = str(row.get("color") or "").strip().lower()
+        if color and color not in ("none", "null"):
+            return "0"
+        return "0"
+    text = str(raw).strip()
+    if text.endswith(".0"):
+        text = text[:-2]
+    return text
+
+
 def _collect_neighbor_table(vm, signal, candidates, lookup, up_metric, total_metric,
                             up_count_metric, extra, is_up):
     data, path = first_working(vm, signal, candidates)
@@ -647,6 +665,9 @@ def collect(vm):
         meta[sysip] = lb
         if host and host != "unknown":
             meta[host] = lb
+        for extra in (d.get("uuid"), d.get("deviceId"), d.get("local-system-ip")):
+            if extra:
+                meta[str(extra)] = lb
 
         reach = (d.get("reachability") or "unknown").lower()
         val = REACH_VALUE.get(reach, 0.0)
@@ -679,19 +700,38 @@ def collect(vm):
         site_routers_total.labels(**sl).set(site_rtr.get(key, 0))
 
     def lookup(row):
-        return (meta.get(row.get("vdevice-name"))
-                or meta.get(row.get("system-ip"))
-                or meta.get(row.get("vdevice-host-name"))
-                or meta.get(row.get("host-name")))
+        """Map a bulk-state row back to the device label set.
+
+        vManage entity names differ by version (vdevice-name vs host-name vs
+        deviceId). If this returns None the interface is dropped and WAN
+        panels go empty even though /dataservice/device listed the router.
+        """
+        for key in (
+            row.get("vdevice-name"),
+            row.get("vdevice-host-name"),
+            row.get("host-name"),
+            row.get("hostName"),
+            row.get("system-ip"),
+            row.get("systemIp"),
+            row.get("local-system-ip"),
+            row.get("deviceId"),
+            row.get("vdevice-id"),
+            row.get("uuid"),
+        ):
+            if key and key in meta:
+                return meta[key]
+        return None
 
     # --- WAN interfaces --------------------------------------------------
     data, path = first_working(vm, "interface", CANDIDATES["interface"])
+    skipped_if = 0
     for r in data:
         lb = lookup(r)
         if not lb:
+            skipped_if += 1
             continue
         il = dict(lb, ifname=r.get("ifname") or r.get("interface") or "unknown",
-                  vpn_id=str(r.get("vpn-id", r.get("vpnId", "0"))),
+                  vpn_id=vpn_id_of(r),
                   color=r.get("color") or "none")
         if_oper_up.labels(**il).set(
             1.0 if str(r.get("if-oper-status", "")).lower() in ("up", "if-oper-state-ready") else 0.0)
@@ -706,6 +746,11 @@ def collect(vm):
             v = fnum(r.get(field))
             if v is not None:
                 metric.labels(**il).set(v * mult)
+    if data and skipped_if:
+        log.warning("interface rows with no matching device: %d of %d (WAN will look empty)",
+                    skipped_if, len(data))
+    elif data:
+        log.info("interfaces published from %s (%d rows)", path, len(data))
 
     # --- OMP -------------------------------------------------------------
     data, path = first_working(vm, "omp", CANDIDATES["omp"])

@@ -22,25 +22,37 @@ groups:
   - name: unified_wan_throughput
     interval: 60s
     rules:
+      # Join Meraki uplinks to meraki_device_up on serial so region/country/
+      # site_id/device_name exist even when the uplink scrape ran before the
+      # device sweep, or an older exporter omitted those labels. Grafana
+      # {region=~".*"} does not match series that lack a region label at all.
       - record: wan_link_rx_bits_per_second
         expr: |
           max by (region, country, site_id, priority, device, link) (
             label_replace(
-              label_replace(meraki_uplink_received_bytes_per_second * 8,
-                            "device", "$1", "device_name", "(.*)"),
+              label_replace(
+                (
+                  meraki_uplink_received_bytes_per_second
+                  * on (serial) group_left (region, country, site_id, priority, device_name)
+                    (max by (serial, region, country, site_id, priority, device_name) (meraki_device_up) * 0 + 1)
+                  or
+                  meraki_uplink_received_bytes_per_second
+                ) * 8,
+                "device", "$1", "device_name", "(.+)"),
               "link", "$1", "uplink", "(.*)")
           )
         labels: {source: meraki}
 
-      # vpn_id 0 is the SD-WAN transport VPN, which is definitionally the WAN.
-      # Filtering on the color label instead looks natural but fails: cEdge
-      # interface state does not reliably carry one, so it excludes the fleet.
+      # Transport WAN: VPN 0, empty VPN, or a TLOC colour (not "none").
       - record: wan_link_rx_bits_per_second
         expr: |
           max by (region, country, site_id, priority, device, link) (
             label_replace(
-              label_replace(vmanage_interface_rx_bits_per_second{vpn_id="0"},
-                            "device", "$1", "hostname", "(.*)"),
+              label_replace(
+                vmanage_interface_rx_bits_per_second{vpn_id=~"^$|^0$|^0\\.0$"}
+                or
+                vmanage_interface_rx_bits_per_second{color!~"^$|^none$"},
+                "device", "$1", "hostname", "(.*)"),
               "link", "$1", "ifname", "(.*)")
           )
         labels: {source: vmanage}
@@ -49,8 +61,15 @@ groups:
         expr: |
           max by (region, country, site_id, priority, device, link) (
             label_replace(
-              label_replace(meraki_uplink_sent_bytes_per_second * 8,
-                            "device", "$1", "device_name", "(.*)"),
+              label_replace(
+                (
+                  meraki_uplink_sent_bytes_per_second
+                  * on (serial) group_left (region, country, site_id, priority, device_name)
+                    (max by (serial, region, country, site_id, priority, device_name) (meraki_device_up) * 0 + 1)
+                  or
+                  meraki_uplink_sent_bytes_per_second
+                ) * 8,
+                "device", "$1", "device_name", "(.+)"),
               "link", "$1", "uplink", "(.*)")
           )
         labels: {source: meraki}
@@ -59,8 +78,11 @@ groups:
         expr: |
           max by (region, country, site_id, priority, device, link) (
             label_replace(
-              label_replace(vmanage_interface_tx_bits_per_second{vpn_id="0"},
-                            "device", "$1", "hostname", "(.*)"),
+              label_replace(
+                vmanage_interface_tx_bits_per_second{vpn_id=~"^$|^0$|^0\\.0$"}
+                or
+                vmanage_interface_tx_bits_per_second{color!~"^$|^none$"},
+                "device", "$1", "hostname", "(.*)"),
               "link", "$1", "ifname", "(.*)")
           )
         labels: {source: vmanage}
@@ -79,8 +101,13 @@ groups:
         expr: |
           max by (region, country, site_id, priority, device, link) (
             label_replace(
-              label_replace(meraki_uplink_status,
-                            "device", "$1", "device_name", "(.*)"),
+              label_replace(
+                meraki_uplink_status
+                * on (serial) group_left (region, country, site_id, priority, device_name)
+                  (max by (serial, region, country, site_id, priority, device_name) (meraki_device_up) * 0 + 1)
+                or
+                meraki_uplink_status,
+                "device", "$1", "device_name", "(.+)"),
               "link", "$1", "uplink", "(.*)")
           )
         labels: {source: meraki}
@@ -89,8 +116,11 @@ groups:
         expr: |
           max by (region, country, site_id, priority, device, link) (
             label_replace(
-              label_replace(vmanage_interface_oper_up{vpn_id="0"},
-                            "device", "$1", "hostname", "(.*)"),
+              label_replace(
+                vmanage_interface_oper_up{vpn_id=~"^$|^0$|^0\\.0$"}
+                or
+                vmanage_interface_oper_up{color!~"^$|^none$"},
+                "device", "$1", "hostname", "(.*)"),
               "link", "$1", "ifname", "(.*)")
           )
         labels: {source: vmanage}
@@ -122,7 +152,8 @@ groups:
         expr: |
           max by (region, country, site_id, priority, device, link) (
             label_replace(
-              label_replace(vmanage_interface_speed_bits_per_second{vpn_id="0"} > 0,
+              label_replace(vmanage_interface_speed_bits_per_second{vpn_id=~"^$|^0$|^0\\.0$"} > 0
+                            or vmanage_interface_speed_bits_per_second{color!~"^$|^none$"} > 0,
                             "device", "$1", "hostname", "(.*)"),
               "link", "$1", "ifname", "(.*)")
           )

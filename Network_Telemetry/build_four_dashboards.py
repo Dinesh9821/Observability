@@ -509,16 +509,16 @@ def sdwan():
 
     P.append(row(901, "WAN / uplink (VPN 0 transport)", y)); y += 1
     P.append(timeseries(20, "WAN RX",
-                        [tgt('vmanage_interface_rx_bits_per_second{%s, vpn_id="0"}' % VDEV,
+                        [tgt('vmanage_interface_rx_bits_per_second{%s, vpn_id=~"^$|^0$|^0\\\\.0$"} or vmanage_interface_rx_bits_per_second{%s, color!~"^$|^none$"}' % (VDEV, VDEV),
                              "{{hostname}} {{ifname}}")],
                         "bps", 0, y, 12, 8))
     P.append(timeseries(21, "WAN TX",
-                        [tgt('vmanage_interface_tx_bits_per_second{%s, vpn_id="0"}' % VDEV,
+                        [tgt('vmanage_interface_tx_bits_per_second{%s, vpn_id=~"^$|^0$|^0\\\\.0$"} or vmanage_interface_tx_bits_per_second{%s, color!~"^$|^none$"}' % (VDEV, VDEV),
                              "{{hostname}} {{ifname}}")],
                         "bps", 12, y, 12, 8))
     y += 8
     P.append(table(22, "Transport interfaces",
-                   'vmanage_interface_oper_up{%s, vpn_id="0"}' % VDEV, 0, y, 24, 9,
+                   'vmanage_interface_oper_up{%s, vpn_id=~"^$|^0$|^0\\\\.0$"} or vmanage_interface_oper_up{%s, color!~"^$|^none$"}' % (VDEV, VDEV), 0, y, 24, 9,
                    {"hostname": "Device", "ifname": "Interface", "color": "Transport",
                     "vpn_id": "VPN", "site_id": "Site", "Value": "Oper"},
                    {"site_id": 0, "hostname": 1, "ifname": 2, "color": 3, "Value": 4}))
