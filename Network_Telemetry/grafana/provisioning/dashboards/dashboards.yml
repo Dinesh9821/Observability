@@ -1,13 +1,13 @@
-# Grafana dashboard provisioning for multiple Meraki organisations.
-#
-# foldersFromFilesStructure: true makes Grafana mirror the directory tree as
-# folders, so dashboards/carrier-emea/wan-carrier-emea.json lands in a folder
-# called "carrier-emea". One folder per organisation, which keeps permissions
-# and navigation clean as the org count grows.
+# Grafana dashboard provisioning.
+# The four operational dashboards live in this directory:
+#   1. Full Observability
+#   2. Inventory
+#   3. Meraki
+#   4. SD-WAN
 apiVersion: 1
 
 providers:
-  - name: wan-meraki
+  - name: network-observability
     orgId: 1
     type: file
     disableDeletion: false
@@ -15,4 +15,4 @@ providers:
     updateIntervalSeconds: 30
     options:
       path: /etc/grafana/provisioning/dashboards
-      foldersFromFilesStructure: true
+      foldersFromFilesStructure: false

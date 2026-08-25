@@ -1,0 +1,137 @@
+# Operational alerts. Thresholds are environment-wide defaults; override via
+# Prometheus --rule.files or by editing this file. Each alert has a `for`
+# clause so a single scrape blip does not page anyone.
+
+groups:
+  - name: network_critical
+    interval: 60s
+    rules:
+      - alert: DeviceDown
+        expr: device_info == 0
+        for: 5m
+        labels: {severity: critical, category: device}
+        annotations:
+          summary: "Device {{ $labels.device }} is DOWN at site {{ $labels.site_id }}"
+          description: "{{ $labels.source }} reports this device unreachable/offline."
+
+      - alert: SiteDown
+        expr: site_devices_up:all == 0 and site_devices_total:all > 0
+        for: 5m
+        labels: {severity: critical, category: site}
+        annotations:
+          summary: "Site {{ $labels.site_id }} is DOWN"
+          description: "Every known device at this site is down."
+
+      - alert: WanLinkDown
+        expr: wan_link_up == 0
+        for: 5m
+        labels: {severity: critical, category: wan}
+        annotations:
+          summary: "WAN {{ $labels.link }} down on {{ $labels.device }} ({{ $labels.site_id }})"
+
+      - alert: SiteBothWanDown
+        expr: |
+          count by (region, country, site_id) (wan_link_up == 0) >= 2
+          and
+          count by (region, country, site_id) (wan_link_up > 0) == 0
+        for: 3m
+        labels: {severity: critical, category: wan}
+        annotations:
+          summary: "All WAN links down at site {{ $labels.site_id }}"
+
+      - alert: SdwanBfdDown
+        expr: vmanage_bfd_session_up == 0
+        for: 5m
+        labels: {severity: critical, category: sdwan}
+        annotations:
+          summary: "BFD down {{ $labels.hostname }} → {{ $labels.remote_system_ip }}"
+
+      - alert: SdwanOmpDown
+        expr: vmanage_omp_peer_up == 0
+        for: 5m
+        labels: {severity: critical, category: sdwan}
+        annotations:
+          summary: "OMP peer down on {{ $labels.hostname }} ({{ $labels.peer }})"
+
+      - alert: SdwanControlConnectionDown
+        expr: vmanage_control_connection_up == 0
+        for: 5m
+        labels: {severity: critical, category: sdwan}
+        annotations:
+          summary: "Control connection down on {{ $labels.hostname }} to {{ $labels.peer }}"
+
+      - alert: BgpNeighborDown
+        expr: vmanage_bgp_neighbor_up == 0
+        for: 5m
+        labels: {severity: critical, category: routing}
+        annotations:
+          summary: "BGP {{ $labels.hostname }} neighbor {{ $labels.peer_addr }} is not established"
+
+  - name: network_warning
+    interval: 60s
+    rules:
+      - alert: HighWanUtilization
+        expr: wan_link_utilization_percent > 85
+        for: 10m
+        labels: {severity: warning, category: wan}
+        annotations:
+          summary: "WAN {{ $labels.link }} on {{ $labels.device }} at {{ $value | printf \"%.0f\" }}%"
+
+      - alert: WanPacketLoss
+        expr: wan_link_loss_percent > 2
+        for: 10m
+        labels: {severity: warning, category: wan}
+        annotations:
+          summary: "Packet loss {{ $value | printf \"%.1f\" }}% on {{ $labels.device }} {{ $labels.link }}"
+
+      - alert: HighWanLatency
+        expr: wan_link_latency_ms > 150
+        for: 10m
+        labels: {severity: warning, category: wan}
+        annotations:
+          summary: "Latency {{ $value | printf \"%.0f\" }} ms on {{ $labels.device }} {{ $labels.link }}"
+
+      - alert: HighWanJitter
+        expr: wan_link_jitter_ms > 30
+        for: 10m
+        labels: {severity: warning, category: wan}
+        annotations:
+          summary: "Jitter {{ $value | printf \"%.0f\" }} ms on {{ $labels.device }} {{ $labels.link }}"
+
+      - alert: HighMemory
+        expr: meraki_device_memory_used_percent > 90
+        for: 15m
+        labels: {severity: warning, category: device}
+        annotations:
+          summary: "Memory {{ $value | printf \"%.0f\" }}% on {{ $labels.device_name }}"
+
+      - alert: SwitchPortErrors
+        expr: meraki_switch_ports_with_errors > 0
+        for: 15m
+        labels: {severity: warning, category: interface}
+        annotations:
+          summary: "{{ $labels.device_name }} has {{ $value }} switch ports with errors"
+
+      - alert: SiteHealthDegraded
+        expr: site_health_score < 80
+        for: 10m
+        labels: {severity: warning, category: site}
+        annotations:
+          summary: "Site {{ $labels.site_id }} health is {{ $value | printf \"%.0f\" }}"
+
+  - name: network_info
+    interval: 60s
+    rules:
+      - alert: WanLinkStandby
+        expr: meraki_uplink_status == 0.5
+        for: 30m
+        labels: {severity: info, category: wan}
+        annotations:
+          summary: "Uplink {{ $labels.uplink }} on {{ $labels.device_name }} is READY (standby)"
+
+      - alert: InventoryDevicesAdded
+        expr: inventory_delta_count{change="added"} > 0
+        for: 0m
+        labels: {severity: info, category: inventory}
+        annotations:
+          summary: "{{ $value }} device(s) added between {{ $labels.from_date }} and {{ $labels.to_date }}"

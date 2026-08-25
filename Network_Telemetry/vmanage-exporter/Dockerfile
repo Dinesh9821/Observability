@@ -7,20 +7,19 @@ WORKDIR /app
 # "Permission denied" on unrelated operations.
 RUN groupadd -r exporter \
  && useradd -r -g exporter -m -d /home/exporter -s /usr/sbin/nologin exporter \
- && mkdir -p /home/exporter/.cache \
- && chown -R exporter:exporter /home/exporter \
+ && mkdir -p /home/exporter/.cache /var/lib/network-telemetry/inventory \
+ && chown -R exporter:exporter /home/exporter /var/lib/network-telemetry \
  && chmod -R 700 /home/exporter
 
 ENV HOME=/home/exporter \
     XDG_CACHE_HOME=/home/exporter/.cache \
     PYTHONDONTWRITEBYTECODE=1
 
-COPY requirements.txt .
+COPY vmanage-exporter/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# COPY preserves the source file's mode. Setting it explicitly makes the image
-# independent of whatever umask built it.
-COPY --chmod=0644 vmanage_exporter.py .
+COPY --chmod=0644 vmanage-exporter/vmanage_exporter.py .
+COPY --chmod=0644 inventory/inventory_lib.py .
 
 USER exporter
 EXPOSE 9823

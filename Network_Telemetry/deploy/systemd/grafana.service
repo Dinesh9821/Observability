@@ -1,0 +1,20 @@
+[Unit]
+Description=Grafana (official tarball, no RPM)
+After=network-online.target prometheus.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=grafana
+Group=grafana
+WorkingDirectory=/opt/grafana
+Environment=GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+Environment=GF_PATHS_DATA=/var/lib/grafana
+Environment=GF_PATHS_LOGS=/var/log/grafana
+Environment=GF_PATHS_HOME=/opt/grafana
+ExecStart=/opt/grafana/bin/grafana server --homepath=/opt/grafana --config=/opt/grafana/conf/custom.ini
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

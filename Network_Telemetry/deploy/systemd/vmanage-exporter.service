@@ -1,0 +1,20 @@
+[Unit]
+Description=vManage / Cisco SD-WAN telemetry exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=telemetry
+Group=telemetry
+EnvironmentFile=/etc/network-telemetry/exporters.env
+Environment=EXPORTER_PORT=9823
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/opt/network-telemetry/inventory
+WorkingDirectory=/opt/network-telemetry/vmanage-exporter
+ExecStart=/opt/network-telemetry/venv/bin/python -u /opt/network-telemetry/vmanage-exporter/vmanage_exporter.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

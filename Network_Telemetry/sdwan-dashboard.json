@@ -1,17 +1,17 @@
 {
   "uid": "sdwan-overlay",
-  "title": "SD-WAN Overlay Dashboard",
-  "description": "Viptela / Catalyst SD-WAN: WAN interfaces plus OMP, BFD and BGP session health. Same Region > Country > Site > Device hierarchy as the Meraki dashboards; site_id is the first two hostname tokens and hostnames containing SD are treated as routers.",
+  "title": "4. SD-WAN",
+  "description": "Cisco Viptela / Catalyst SD-WAN. Region \u2192 Country \u2192 Site ID \u2192 Device. Empty OSPF/EIGRP/TLOC/AppRoute panels mean the collector has no data, not a healthy zero.",
   "tags": [
-    "sdwan",
-    "viptela",
-    "wan"
+    "network",
+    "l1",
+    "observability"
   ],
   "timezone": "browser",
   "editable": true,
   "graphTooltip": 1,
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "1m",
   "time": {
     "from": "now-6h",
@@ -24,20 +24,59 @@
       "15m",
       "30m",
       "1h"
-    ],
-    "time_options": [
-      "10m",
-      "30m",
-      "1h",
-      "6h",
-      "12h",
-      "24h",
-      "2d",
-      "7d"
     ]
   },
   "fiscalYearStartMonth": 0,
-  "links": [],
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Full Observability",
+      "tooltip": "",
+      "type": "link",
+      "url": "/d/complete-observability"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Inventory",
+      "tooltip": "",
+      "type": "link",
+      "url": "/d/inventory-discovery"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Meraki",
+      "tooltip": "",
+      "type": "link",
+      "url": "/d/meraki-operations"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "SD-WAN",
+      "tooltip": "",
+      "type": "link",
+      "url": "/d/sdwan-overlay"
+    }
+  ],
   "annotations": {
     "list": [
       {
@@ -64,10 +103,10 @@
           "type": "prometheus",
           "uid": "prometheus"
         },
-        "definition": "query_result(count by (region) (last_over_time(vmanage_site_devices_total[24h])))",
+        "definition": "query_result(count by (region) (last_over_time(vmanage_device_reachable[24h])))",
         "query": {
           "qryType": 3,
-          "query": "query_result(count by (region) (last_over_time(vmanage_site_devices_total[24h])))",
+          "query": "query_result(count by (region) (last_over_time(vmanage_device_reachable[24h])))",
           "refId": "var-region"
         },
         "regex": "/region=\"([^\"]+)\"/",
@@ -92,10 +131,10 @@
           "type": "prometheus",
           "uid": "prometheus"
         },
-        "definition": "query_result(count by (country) (last_over_time(vmanage_site_devices_total{region=~\"$region\"}[24h])))",
+        "definition": "query_result(count by (country) (last_over_time(vmanage_device_reachable{region=~\"$region\"}[24h])))",
         "query": {
           "qryType": 3,
-          "query": "query_result(count by (country) (last_over_time(vmanage_site_devices_total{region=~\"$region\"}[24h])))",
+          "query": "query_result(count by (country) (last_over_time(vmanage_device_reachable{region=~\"$region\"}[24h])))",
           "refId": "var-country"
         },
         "regex": "/country=\"([^\"]+)\"/",
@@ -113,18 +152,18 @@
         "allValue": ".*"
       },
       {
-        "name": "site",
+        "name": "site_id",
         "label": "Site ID",
         "type": "query",
         "datasource": {
           "type": "prometheus",
           "uid": "prometheus"
         },
-        "definition": "query_result(count by (site_id) (last_over_time(vmanage_site_devices_total{region=~\"$region\", country=~\"$country\"}[24h])))",
+        "definition": "query_result(count by (site_id) (last_over_time(vmanage_device_reachable{region=~\"$region\",country=~\"$country\"}[24h])))",
         "query": {
           "qryType": 3,
-          "query": "query_result(count by (site_id) (last_over_time(vmanage_site_devices_total{region=~\"$region\", country=~\"$country\"}[24h])))",
-          "refId": "var-site"
+          "query": "query_result(count by (site_id) (last_over_time(vmanage_device_reachable{region=~\"$region\",country=~\"$country\"}[24h])))",
+          "refId": "var-site_id"
         },
         "regex": "/site_id=\"([^\"]+)\"/",
         "multi": false,
@@ -148,10 +187,10 @@
           "type": "prometheus",
           "uid": "prometheus"
         },
-        "definition": "query_result(count by (hostname) (last_over_time(vmanage_device_reachable{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}[24h])))",
+        "definition": "query_result(count by (hostname) (last_over_time(vmanage_device_reachable{region=~\"$region\",country=~\"$country\",site_id=~\"$site_id\"}[24h])))",
         "query": {
           "qryType": 3,
-          "query": "query_result(count by (hostname) (last_over_time(vmanage_device_reachable{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}[24h])))",
+          "query": "query_result(count by (hostname) (last_over_time(vmanage_device_reachable{region=~\"$region\",country=~\"$country\",site_id=~\"$site_id\"}[24h])))",
           "refId": "var-device"
         },
         "regex": "/hostname=\"([^\"]+)\"/",
@@ -174,7 +213,7 @@
     {
       "id": 900,
       "type": "row",
-      "title": "SD-WAN fabric health",
+      "title": "SD-WAN fabric \u2014 what is wrong?",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -190,400 +229,18 @@
     },
     {
       "id": 1,
-      "type": "gauge",
-      "title": "Device Reachability",
+      "type": "stat",
+      "title": "Devices",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
       "description": "",
       "gridPos": {
-        "h": 7,
-        "w": 5,
-        "x": 0,
-        "y": 1
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "min": 0,
-          "max": 100,
-          "decimals": 1,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 80
-              },
-              {
-                "color": "#EAB839",
-                "value": 95
-              },
-              {
-                "color": "green",
-                "value": 99
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "minVizWidth": 75,
-        "minVizHeight": 75,
-        "sizing": "auto",
-        "orientation": "auto"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "100 * sum(last_over_time(vmanage_site_devices_reachable{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}[1h])) / sum(last_over_time(vmanage_site_devices_total{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}[1h]))",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "reachable"
-        }
-      ]
-    },
-    {
-      "id": 2,
-      "type": "gauge",
-      "title": "OMP Sessions Up",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "OMP carries the overlay routing. If OMP is down the device is isolated from the fabric even while its WAN link is up.",
-      "gridPos": {
-        "h": 7,
-        "w": 5,
-        "x": 5,
-        "y": 1
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "min": 0,
-          "max": 100,
-          "decimals": 1,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 80
-              },
-              {
-                "color": "#EAB839",
-                "value": 95
-              },
-              {
-                "color": "green",
-                "value": 99
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "minVizWidth": 75,
-        "minVizHeight": 75,
-        "sizing": "auto",
-        "orientation": "auto"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "100 * sum(last_over_time(vmanage_omp_peers_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}[1h])) / sum(last_over_time(vmanage_omp_peers_total{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}[1h]))",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "OMP"
-        }
-      ]
-    },
-    {
-      "id": 3,
-      "type": "gauge",
-      "title": "BFD Tunnels Up",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "Each BFD session is one site-to-site tunnel. Partial loss here means specific paths are down, not the whole site.",
-      "gridPos": {
-        "h": 7,
-        "w": 5,
-        "x": 10,
-        "y": 1
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "min": 0,
-          "max": 100,
-          "decimals": 1,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 80
-              },
-              {
-                "color": "#EAB839",
-                "value": 95
-              },
-              {
-                "color": "green",
-                "value": 99
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "minVizWidth": 75,
-        "minVizHeight": 75,
-        "sizing": "auto",
-        "orientation": "auto"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "100 * sum(last_over_time(vmanage_bfd_sessions_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}[1h])) / sum(last_over_time(vmanage_bfd_sessions_total{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}[1h]))",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "BFD"
-        }
-      ]
-    },
-    {
-      "id": 4,
-      "type": "gauge",
-      "title": "BGP Established",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "Only 'established' counts as up. A neighbour stuck in active or connect is trying and failing.",
-      "gridPos": {
-        "h": 7,
-        "w": 5,
-        "x": 15,
-        "y": 1
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "min": 0,
-          "max": 100,
-          "decimals": 1,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 80
-              },
-              {
-                "color": "#EAB839",
-                "value": 95
-              },
-              {
-                "color": "green",
-                "value": 99
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "minVizWidth": 75,
-        "minVizHeight": 75,
-        "sizing": "auto",
-        "orientation": "auto"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "100 * sum(last_over_time(vmanage_bgp_neighbors_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}[1h])) / sum(last_over_time(vmanage_bgp_neighbors_total{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}[1h]))",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "BGP"
-        }
-      ]
-    },
-    {
-      "id": 5,
-      "type": "gauge",
-      "title": "Routers",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "Hostnames containing SD are treated as routers.",
-      "gridPos": {
-        "h": 7,
-        "w": 4,
-        "x": 20,
-        "y": 1
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "min": 0,
-          "max": null,
-          "decimals": 1,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "blue",
-                "value": null
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "minVizWidth": 75,
-        "minVizHeight": 75,
-        "sizing": "auto",
-        "orientation": "auto"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "count(last_over_time(vmanage_device_reachable{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", device_role=\"ROUTER\"}[1h]))",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "routers"
-        }
-      ]
-    },
-    {
-      "id": 10,
-      "type": "stat",
-      "title": "SD-WAN Devices",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
         "h": 4,
-        "w": 4,
+        "w": 3,
         "x": 0,
-        "y": 8
+        "y": 1
       },
       "fieldConfig": {
         "defaults": {
@@ -621,8 +278,8 @@
         "showPercentChange": false,
         "percentChangeColorMode": "standard",
         "text": {
-          "titleSize": 13,
-          "valueSize": 32
+          "titleSize": 12,
+          "valueSize": 28
         }
       },
       "targets": [
@@ -632,26 +289,27 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(vmanage_site_devices_total{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"})",
+          "expr": "sum(vmanage_site_devices_total{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\"})",
           "refId": "A",
-          "range": true,
-          "instant": false
+          "range": false,
+          "instant": true
         }
       ]
     },
     {
-      "id": 11,
+      "id": 2,
       "type": "stat",
       "title": "Unreachable",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 4,
-        "y": 8
+        "w": 3,
+        "x": 3,
+        "y": 1
       },
       "fieldConfig": {
         "defaults": {
@@ -693,8 +351,8 @@
         "showPercentChange": false,
         "percentChangeColorMode": "standard",
         "text": {
-          "titleSize": 13,
-          "valueSize": 32
+          "titleSize": 12,
+          "valueSize": 28
         }
       },
       "targets": [
@@ -704,26 +362,27 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(vmanage_site_devices_total{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}) - sum(vmanage_site_devices_reachable{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"})",
+          "expr": "sum(vmanage_site_devices_total{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\"}) - sum(vmanage_site_devices_reachable{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\"})",
           "refId": "A",
-          "range": true,
-          "instant": false
+          "range": false,
+          "instant": true
         }
       ]
     },
     {
-      "id": 12,
+      "id": 3,
       "type": "stat",
-      "title": "BFD Down",
+      "title": "BFD DOWN",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 8,
-        "y": 8
+        "w": 3,
+        "x": 6,
+        "y": 1
       },
       "fieldConfig": {
         "defaults": {
@@ -737,12 +396,8 @@
                 "value": null
               },
               {
-                "color": "orange",
-                "value": 1
-              },
-              {
                 "color": "red",
-                "value": 10
+                "value": 1
               }
             ]
           },
@@ -769,8 +424,8 @@
         "showPercentChange": false,
         "percentChangeColorMode": "standard",
         "text": {
-          "titleSize": 13,
-          "valueSize": 32
+          "titleSize": 12,
+          "valueSize": 28
         }
       },
       "targets": [
@@ -780,26 +435,100 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(vmanage_bfd_sessions_total{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}) - sum(vmanage_bfd_sessions_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"})",
+          "expr": "sum(vmanage_bfd_sessions_total{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\"}) - sum(vmanage_bfd_sessions_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\"})",
           "refId": "A",
-          "range": true,
-          "instant": false
+          "range": false,
+          "instant": true
         }
       ]
     },
     {
-      "id": 13,
+      "id": 4,
       "type": "stat",
-      "title": "BGP Down",
+      "title": "OMP DOWN",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "",
       "gridPos": {
         "h": 4,
-        "w": 4,
+        "w": 3,
+        "x": 9,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(vmanage_omp_peers_total{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\"}) - sum(vmanage_omp_peers_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\"})",
+          "refId": "A",
+          "range": false,
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "BGP DOWN",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 4,
+        "w": 3,
         "x": 12,
-        "y": 8
+        "y": 1
       },
       "fieldConfig": {
         "defaults": {
@@ -841,8 +570,8 @@
         "showPercentChange": false,
         "percentChangeColorMode": "standard",
         "text": {
-          "titleSize": 13,
-          "valueSize": 32
+          "titleSize": 12,
+          "valueSize": 28
         }
       },
       "targets": [
@@ -852,98 +581,27 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(vmanage_bgp_neighbors_total{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}) - sum(vmanage_bgp_neighbors_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"})",
+          "expr": "sum(vmanage_bgp_neighbors_total{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\"}) - sum(vmanage_bgp_neighbors_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\"})",
           "refId": "A",
-          "range": true,
-          "instant": false
+          "range": false,
+          "instant": true
         }
       ]
     },
     {
-      "id": 14,
+      "id": 6,
       "type": "stat",
-      "title": "OMP Down",
+      "title": "Control UP",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 16,
-        "y": 8
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 1
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "wideLayout": true,
-        "showPercentChange": false,
-        "percentChangeColorMode": "standard",
-        "text": {
-          "titleSize": 13,
-          "valueSize": 32
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum(vmanage_omp_peers_total{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}) - sum(vmanage_omp_peers_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"})",
-          "refId": "A",
-          "range": true,
-          "instant": false
-        }
-      ]
-    },
-    {
-      "id": 15,
-      "type": "stat",
-      "title": "Control Connections",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 20,
-        "y": 8
+        "w": 3,
+        "x": 15,
+        "y": 1
       },
       "fieldConfig": {
         "defaults": {
@@ -981,8 +639,8 @@
         "showPercentChange": false,
         "percentChangeColorMode": "standard",
         "text": {
-          "titleSize": 13,
-          "valueSize": 32
+          "titleSize": 12,
+          "valueSize": 28
         }
       },
       "targets": [
@@ -992,23 +650,161 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(vmanage_control_connections_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}) or vector(0)",
+          "expr": "sum(vmanage_control_connections_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\"}) or vector(0)",
           "refId": "A",
-          "range": true,
-          "instant": false
+          "range": false,
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "TLOC UP",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "0 with vmanage_endpoint_available{signal=\"tloc\"}==0 means the API is not on this controller.",
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 18,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(vmanage_tloc_up_count{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\"}) or vector(0)",
+          "refId": "A",
+          "range": false,
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "OSPF FULL",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Empty/zero with endpoint_available=0 means OSPF is not collected on this vManage \u2014 not that OSPF is down.",
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 21,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(vmanage_ospf_neighbors_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\"}) or vector(0)",
+          "refId": "A",
+          "range": false,
+          "instant": true
         }
       ]
     },
     {
       "id": 901,
       "type": "row",
-      "title": "WAN interfaces",
+      "title": "WAN / uplink (VPN 0 transport)",
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 12
+        "y": 5
       },
       "panels": [],
       "datasource": {
@@ -1019,17 +815,17 @@
     {
       "id": 20,
       "type": "timeseries",
-      "title": "WAN throughput \u2014 ingress",
+      "title": "WAN RX",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Only transport interfaces (those with a TLOC colour) are charted. Colour is the SD-WAN transport type: mpls, biz-internet, lte.",
+      "description": "",
       "gridPos": {
-        "h": 9,
+        "h": 8,
         "w": 12,
         "x": 0,
-        "y": 13
+        "y": 6
       },
       "fieldConfig": {
         "defaults": {
@@ -1045,23 +841,8 @@
             "fillOpacity": 16,
             "gradientMode": "opacity",
             "showPoints": "never",
-            "pointSize": 5,
             "spanNulls": 900000,
-            "axisPlacement": "auto",
-            "axisLabel": "",
-            "axisColorMode": "text",
-            "axisBorderShow": false,
             "axisSoftMin": 0,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "barAlignment": 0,
-            "insertNulls": false,
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -1087,8 +868,7 @@
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true,
-          "calcs": []
+          "showLegend": true
         },
         "tooltip": {
           "mode": "multi",
@@ -1102,18 +882,96 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "vmanage_interface_rx_bits_per_second{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", color!=\"none\"}",
+          "expr": "vmanage_interface_rx_bits_per_second{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\", vpn_id=~\"^$|^0$|^0\\\\.0$\"} or vmanage_interface_rx_bits_per_second{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\", color!~\"^$|^none$\"}",
           "refId": "A",
           "range": true,
           "instant": false,
-          "legendFormat": "{{hostname}} {{ifname}} ({{color}})"
+          "legendFormat": "{{hostname}} {{ifname}}"
         }
       ]
     },
     {
       "id": 21,
       "type": "timeseries",
-      "title": "WAN throughput \u2014 egress",
+      "title": "WAN TX",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bps",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 16,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": 900000,
+            "axisSoftMin": 0,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "vmanage_interface_tx_bits_per_second{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\", vpn_id=~\"^$|^0$|^0\\\\.0$\"} or vmanage_interface_tx_bits_per_second{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\", color!~\"^$|^none$\"}",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{hostname}} {{ifname}}"
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "type": "table",
+      "title": "Transport interfaces",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1121,13 +979,318 @@
       "description": "",
       "gridPos": {
         "h": 9,
-        "w": 12,
-        "x": 12,
-        "y": 13
+        "w": 24,
+        "x": 0,
+        "y": 14
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "bps",
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        },
+        "sortBy": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "vmanage_interface_oper_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\", vpn_id=~\"^$|^0$|^0\\\\.0$\"} or vmanage_interface_oper_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\", color!~\"^$|^none$\"}",
+          "refId": "A",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "job": true,
+              "instance": true,
+              "environment": true,
+              "platform": true,
+              "resolution_s": true
+            },
+            "renameByName": {
+              "hostname": "Device",
+              "ifname": "Interface",
+              "color": "Transport",
+              "vpn_id": "VPN",
+              "site_id": "Site",
+              "Value": "Oper"
+            },
+            "indexByName": {
+              "site_id": 0,
+              "hostname": 1,
+              "ifname": 2,
+              "color": 3,
+              "Value": 4
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 902,
+      "type": "row",
+      "title": "BFD / TLOC / AppRoute (latency \u00b7 jitter \u00b7 loss)",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 23
+      },
+      "panels": [],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
+    },
+    {
+      "id": 30,
+      "type": "table",
+      "title": "BFD sessions \u2014 failed first",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        },
+        "sortBy": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "vmanage_bfd_session_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\"}",
+          "refId": "A",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "job": true,
+              "instance": true,
+              "environment": true,
+              "platform": true,
+              "resolution_s": true
+            },
+            "renameByName": {
+              "hostname": "Device",
+              "remote_system_ip": "Remote",
+              "local_color": "Local color",
+              "remote_color": "Remote color",
+              "remote_site_id": "Remote site",
+              "Value": "State"
+            },
+            "indexByName": {
+              "hostname": 0,
+              "local_color": 1,
+              "remote_color": 2,
+              "remote_system_ip": 3,
+              "Value": 4
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "type": "table",
+      "title": "TLOC",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "If this table is empty, check vmanage_endpoint_available{signal=\"tloc\"}.",
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        },
+        "sortBy": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "vmanage_tloc_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\"}",
+          "refId": "A",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "job": true,
+              "instance": true,
+              "environment": true,
+              "platform": true,
+              "resolution_s": true
+            },
+            "renameByName": {
+              "hostname": "Device",
+              "color": "Color",
+              "encap": "Encap",
+              "Value": "State"
+            },
+            "indexByName": {
+              "hostname": 0,
+              "color": 1,
+              "encap": 2,
+              "Value": 3
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "type": "timeseries",
+      "title": "AppRoute latency / jitter / loss",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Data not available unless vManage exposes AppRouteStatistics.",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 34
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
           "min": 0,
           "color": {
             "mode": "palette-classic"
@@ -1139,23 +1302,8 @@
             "fillOpacity": 16,
             "gradientMode": "opacity",
             "showPoints": "never",
-            "pointSize": 5,
             "spanNulls": 900000,
-            "axisPlacement": "auto",
-            "axisLabel": "",
-            "axisColorMode": "text",
-            "axisBorderShow": false,
             "axisSoftMin": 0,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "barAlignment": 0,
-            "insertNulls": false,
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -1181,8 +1329,7 @@
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true,
-          "calcs": []
+          "showLegend": true
         },
         "tooltip": {
           "mode": "multi",
@@ -1196,196 +1343,48 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "vmanage_interface_tx_bits_per_second{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", color!=\"none\"}",
+          "expr": "vmanage_approute_latency_milliseconds{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\"}",
           "refId": "A",
           "range": true,
           "instant": false,
-          "legendFormat": "{{hostname}} {{ifname}} ({{color}})"
-        }
-      ]
-    },
-    {
-      "id": 30,
-      "type": "bargauge",
-      "title": "Interface utilisation vs port speed",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "Against NEGOTIATED PORT SPEED, not contracted CIR. A 1 Gbps port on a 100 Mbps circuit will read 10x low here. Treat as indicative until circuit CIRs are mapped.",
-      "gridPos": {
-        "h": 10,
-        "w": 12,
-        "x": 0,
-        "y": 22
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "min": 0,
-          "max": 100,
-          "decimals": 1,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "#EAB839",
-                "value": 60
-              },
-              {
-                "color": "orange",
-                "value": 80
-              },
-              {
-                "color": "red",
-                "value": 95
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
+          "legendFormat": "{{hostname}} {{local_color}} latency"
         },
-        "overrides": []
-      },
-      "options": {
-        "displayMode": "gradient",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "valueMode": "color",
-        "namePlacement": "left",
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "maxVizHeight": 300,
-        "sizing": "auto",
-        "legend": {
-          "showLegend": false,
-          "displayMode": "list",
-          "placement": "bottom",
-          "calcs": []
-        }
-      },
-      "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "100 * vmanage_interface_rx_bits_per_second{region=~\"$region\", country=~\"$country\", site_id=~\"$site\", color!=\"none\"} / (vmanage_interface_speed_bits_per_second{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"} > 0)",
+          "expr": "vmanage_approute_jitter_milliseconds{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\"}",
           "refId": "A",
           "range": true,
           "instant": false,
-          "legendFormat": "{{hostname}} {{ifname}}"
-        }
-      ]
-    },
-    {
-      "id": 31,
-      "type": "bargauge",
-      "title": "Errors and drops by interface",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "Usually a physical layer problem: cable, optic, or duplex mismatch.",
-      "gridPos": {
-        "h": 10,
-        "w": 12,
-        "x": 12,
-        "y": 22
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "min": 0,
-          "max": null,
-          "decimals": 1,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 1
-              },
-              {
-                "color": "red",
-                "value": 100
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
+          "legendFormat": "{{hostname}} {{local_color}} jitter"
         },
-        "overrides": []
-      },
-      "options": {
-        "displayMode": "basic",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "valueMode": "color",
-        "namePlacement": "left",
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "maxVizHeight": 300,
-        "sizing": "auto",
-        "legend": {
-          "showLegend": false,
-          "displayMode": "list",
-          "placement": "bottom",
-          "calcs": []
-        }
-      },
-      "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sort_desc(vmanage_interface_rx_errors{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"} + vmanage_interface_tx_errors{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"} + vmanage_interface_rx_drops{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"} + vmanage_interface_tx_drops{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"})",
+          "expr": "vmanage_approute_loss_percent{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\"}",
           "refId": "A",
           "range": true,
           "instant": false,
-          "legendFormat": "{{hostname}} {{ifname}}"
+          "legendFormat": "{{hostname}} {{local_color}} loss"
         }
       ]
     },
     {
-      "id": 902,
+      "id": 903,
       "type": "row",
-      "title": "Overlay sessions",
+      "title": "Control / OMP / BGP / OSPF / EIGRP",
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 32
+        "y": 42
       },
       "panels": [],
       "datasource": {
@@ -1396,18 +1395,18 @@
     {
       "id": 40,
       "type": "table",
-      "title": "BFD tunnels",
+      "title": "Control connections",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "",
       "gridPos": {
-        "h": 10,
-        "w": 8,
+        "h": 9,
+        "w": 12,
         "x": 0,
-        "y": 33
+        "y": 43
       },
-      "description": "One row per site-to-site tunnel. local_color and remote_color show which transports the path uses.",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -1429,46 +1428,7 @@
             ]
           }
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "State"
-            },
-            "properties": [
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "0": {
-                        "text": "Down",
-                        "color": "red",
-                        "index": 0
-                      },
-                      "1": {
-                        "text": "Up",
-                        "color": "green",
-                        "index": 1
-                      }
-                    }
-                  }
-                ]
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
-              },
-              {
-                "id": "custom.width",
-                "value": 80
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "options": {
         "showHeader": true,
@@ -1481,12 +1441,7 @@
           "countRows": false,
           "fields": ""
         },
-        "sortBy": [
-          {
-            "desc": false,
-            "displayName": "State"
-          }
-        ]
+        "sortBy": []
       },
       "targets": [
         {
@@ -1495,7 +1450,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "vmanage_bfd_session_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}",
+          "expr": "vmanage_control_connection_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\"}",
           "refId": "A",
           "range": false,
           "instant": true,
@@ -1511,31 +1466,24 @@
               "__name__": true,
               "job": true,
               "instance": true,
-              "region": true,
-              "country": true,
-              "priority": true,
-              "device_type": true,
-              "device_model": true,
-              "system_ip": true,
-              "device_role": true,
-              "proto": true
+              "environment": true,
+              "platform": true,
+              "resolution_s": true
             },
             "renameByName": {
               "hostname": "Device",
-              "site_id": "Site",
-              "remote_site_id": "Remote Site",
+              "peer": "Peer",
+              "peer_type": "Type",
               "local_color": "Local",
               "remote_color": "Remote",
-              "remote_system_ip": "Remote IP",
+              "protocol": "Proto",
               "Value": "State"
             },
             "indexByName": {
-              "site_id": 0,
-              "hostname": 1,
-              "remote_site_id": 2,
-              "local_color": 3,
-              "remote_color": 4,
-              "Value": 5
+              "hostname": 0,
+              "peer_type": 1,
+              "peer": 2,
+              "Value": 3
             }
           }
         }
@@ -1544,16 +1492,17 @@
     {
       "id": 41,
       "type": "table",
-      "title": "BGP neighbours",
+      "title": "OMP peers",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "",
       "gridPos": {
-        "h": 10,
-        "w": 8,
-        "x": 8,
-        "y": 33
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 43
       },
       "fieldConfig": {
         "defaults": {
@@ -1589,12 +1538,7 @@
           "countRows": false,
           "fields": ""
         },
-        "sortBy": [
-          {
-            "desc": false,
-            "displayName": "State"
-          }
-        ]
+        "sortBy": []
       },
       "targets": [
         {
@@ -1603,7 +1547,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "vmanage_bgp_neighbor_state_info{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}",
+          "expr": "vmanage_omp_peer_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\"}",
           "refId": "A",
           "range": false,
           "instant": true,
@@ -1619,30 +1563,21 @@
               "__name__": true,
               "job": true,
               "instance": true,
-              "region": true,
-              "country": true,
-              "priority": true,
-              "device_type": true,
-              "device_model": true,
-              "system_ip": true,
-              "device_role": true,
-              "Value": true
+              "environment": true,
+              "platform": true,
+              "resolution_s": true
             },
             "renameByName": {
               "hostname": "Device",
-              "site_id": "Site",
-              "peer_addr": "Peer",
-              "remote_as": "Remote AS",
-              "vpn_id": "VPN",
-              "state": "State"
+              "peer": "Peer",
+              "peer_type": "Type",
+              "Value": "State"
             },
             "indexByName": {
-              "site_id": 0,
-              "hostname": 1,
-              "peer_addr": 2,
-              "remote_as": 3,
-              "vpn_id": 4,
-              "state": 5
+              "hostname": 0,
+              "peer": 1,
+              "peer_type": 2,
+              "Value": 3
             }
           }
         }
@@ -1651,16 +1586,17 @@
     {
       "id": 42,
       "type": "table",
-      "title": "OMP peers",
+      "title": "BGP neighbours",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "",
       "gridPos": {
-        "h": 10,
+        "h": 9,
         "w": 8,
-        "x": 16,
-        "y": 33
+        "x": 0,
+        "y": 52
       },
       "fieldConfig": {
         "defaults": {
@@ -1683,46 +1619,7 @@
             ]
           }
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "State"
-            },
-            "properties": [
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "0": {
-                        "text": "Down",
-                        "color": "red",
-                        "index": 0
-                      },
-                      "1": {
-                        "text": "Up",
-                        "color": "green",
-                        "index": 1
-                      }
-                    }
-                  }
-                ]
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
-              },
-              {
-                "id": "custom.width",
-                "value": 80
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "options": {
         "showHeader": true,
@@ -1735,12 +1632,7 @@
           "countRows": false,
           "fields": ""
         },
-        "sortBy": [
-          {
-            "desc": false,
-            "displayName": "State"
-          }
-        ]
+        "sortBy": []
       },
       "targets": [
         {
@@ -1749,7 +1641,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "vmanage_omp_peer_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}",
+          "expr": "vmanage_bgp_neighbor_state_info{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\"}",
           "refId": "A",
           "range": false,
           "instant": true,
@@ -1765,119 +1657,77 @@
               "__name__": true,
               "job": true,
               "instance": true,
-              "region": true,
-              "country": true,
-              "priority": true,
-              "device_type": true,
-              "device_model": true,
-              "system_ip": true,
-              "device_role": true,
-              "domain_id": true
+              "environment": true,
+              "platform": true,
+              "resolution_s": true
             },
             "renameByName": {
               "hostname": "Device",
-              "site_id": "Site",
-              "peer": "Peer",
-              "peer_type": "Type",
-              "Value": "State"
+              "peer_addr": "Neighbor",
+              "remote_as": "Remote AS",
+              "vpn_id": "VPN",
+              "state": "State"
             },
             "indexByName": {
-              "site_id": 0,
-              "hostname": 1,
-              "peer": 2,
-              "peer_type": 3,
-              "Value": 4
+              "hostname": 0,
+              "peer_addr": 1,
+              "state": 2,
+              "remote_as": 3
             }
           }
         }
       ]
     },
     {
-      "id": 50,
-      "type": "state-timeline",
-      "title": "Device reachability",
+      "id": 43,
+      "type": "table",
+      "title": "OSPF neighbours",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "If empty: OSPF is not present on this collector, not necessarily missing on the router.",
       "gridPos": {
-        "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 43
+        "h": 9,
+        "w": 8,
+        "x": 8,
+        "y": 52
       },
       "fieldConfig": {
         "defaults": {
           "custom": {
-            "lineWidth": 0,
-            "fillOpacity": 85,
-            "spanNulls": false,
-            "insertNulls": false,
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            }
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": true
           },
-          "color": {
-            "mode": "thresholds"
-          },
+          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "text",
                 "value": null
-              },
-              {
-                "color": "orange",
-                "value": 0.5
-              },
-              {
-                "color": "green",
-                "value": 1
               }
             ]
-          },
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": {
-                  "text": "Unreachable",
-                  "color": "red",
-                  "index": 0
-                },
-                "0.5": {
-                  "text": "Staging",
-                  "color": "orange",
-                  "index": 1
-                },
-                "1": {
-                  "text": "Reachable",
-                  "color": "green",
-                  "index": 2
-                }
-              }
-            }
-          ]
+          }
         },
         "overrides": []
       },
       "options": {
-        "mergeValues": true,
-        "showValue": "never",
-        "alignValue": "center",
-        "rowHeight": 0.85,
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
         },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+        "sortBy": []
       },
       "targets": [
         {
@@ -1886,11 +1736,245 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "vmanage_device_reachable{region=~\"$region\", country=~\"$country\", site_id=~\"$site\"}",
+          "expr": "vmanage_ospf_neighbor_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\"}",
           "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{hostname}}"
+          "range": false,
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "job": true,
+              "instance": true,
+              "environment": true,
+              "platform": true,
+              "resolution_s": true
+            },
+            "renameByName": {
+              "hostname": "Device",
+              "neighbor": "Neighbor",
+              "area": "Area",
+              "ifname": "Interface",
+              "state": "State",
+              "Value": "FULL?"
+            },
+            "indexByName": {
+              "hostname": 0,
+              "neighbor": 1,
+              "state": 2,
+              "area": 3
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 44,
+      "type": "table",
+      "title": "EIGRP neighbours",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "If empty: EIGRP is not available from current vManage bulk state.",
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 52
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        },
+        "sortBy": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "vmanage_eigrp_neighbor_up{region=~\"$region\", country=~\"$country\", site_id=~\"$site_id\", hostname=~\"$device\"}",
+          "refId": "A",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "job": true,
+              "instance": true,
+              "environment": true,
+              "platform": true,
+              "resolution_s": true
+            },
+            "renameByName": {
+              "hostname": "Device",
+              "neighbor": "Neighbor",
+              "as_number": "AS",
+              "ifname": "Interface",
+              "state": "State",
+              "Value": "Up?"
+            },
+            "indexByName": {
+              "hostname": 0,
+              "neighbor": 1,
+              "state": 2
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 904,
+      "type": "row",
+      "title": "Collector coverage (do not ignore this)",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 61
+      },
+      "panels": [],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
+    },
+    {
+      "id": 50,
+      "type": "table",
+      "title": "vManage endpoints that returned data",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "0 means this vManage version does not expose that entity. The dashboard will look empty for that protocol.",
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 62
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        },
+        "sortBy": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "vmanage_endpoint_available",
+          "refId": "A",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "job": true,
+              "instance": true,
+              "environment": true,
+              "platform": true,
+              "resolution_s": true
+            },
+            "renameByName": {
+              "signal": "Signal",
+              "path": "API path",
+              "Value": "Available"
+            },
+            "indexByName": {
+              "signal": 0,
+              "path": 1,
+              "Value": 2
+            }
+          }
         }
       ]
     }
