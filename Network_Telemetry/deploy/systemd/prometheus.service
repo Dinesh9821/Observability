@@ -1,0 +1,20 @@
+[Unit]
+Description=Prometheus
+After=network-online.target meraki-exporter.service vmanage-exporter.service inventory-exporter.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=telemetry
+Group=telemetry
+ExecStart=/usr/local/bin/prometheus \
+  --config.file=/etc/prometheus/prometheus.yml \
+  --storage.tsdb.path=/var/lib/prometheus \
+  --storage.tsdb.retention.time=30d \
+  --web.listen-address=127.0.0.1:9090 \
+  --web.enable-lifecycle
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

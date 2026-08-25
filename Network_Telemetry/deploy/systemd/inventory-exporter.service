@@ -1,0 +1,20 @@
+[Unit]
+Description=Inventory snapshot / FROM-TO delta exporter
+After=network-online.target meraki-exporter.service vmanage-exporter.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=telemetry
+Group=telemetry
+EnvironmentFile=/etc/network-telemetry/exporters.env
+Environment=EXPORTER_PORT=9824
+Environment=INVENTORY_API_PORT=9825
+Environment=PYTHONUNBUFFERED=1
+WorkingDirectory=/opt/network-telemetry/inventory
+ExecStart=/opt/network-telemetry/venv/bin/python -u /opt/network-telemetry/inventory/inventory_exporter.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

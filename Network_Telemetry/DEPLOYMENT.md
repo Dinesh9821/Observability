@@ -9,6 +9,340 @@ Two supported layouts:
 
 Secrets never go in Git. Use `.env` or systemd `EnvironmentFile`.
 
+**If you have a blank Red Hat server and nothing else installed, start at
+[section 0](#0-blank-red-hat-enterprise-linux-server-from-zero).**
+That path does not use Docker. It copies files to exact Linux paths and
+starts systemd services.
+
+---
+
+## 0. Blank Red Hat Enterprise Linux server (from zero)
+
+Tested layout: **RHEL 8 or RHEL 9**, one VM, you are `root` or have `sudo`.
+You need outbound HTTPS to:
+
+- GitHub (to get this code) **or** a USB/SCP copy of the repo
+- `api.meraki.com`
+- your vManage (`VMANAGE_HOST:443`)
+- Grafana Labs yum repo (or install Grafana RPM offline)
+- `github.com/prometheus/prometheus/releases` (or copy the Prometheus tarball)
+
+You also need:
+
+- A Meraki API key
+- vManage username/password
+- 50 GB+ free disk if you will keep ~30 days of metrics for thousands of devices
+
+### 0.1 What will run when you are done
+
+| Service | Listens | Copy / binary location |
+|---------|---------|------------------------|
+| meraki-exporter | `127.0.0.1:9822` | `/opt/network-telemetry/meraki-exporter/exporter.py` |
+| vmanage-exporter | `127.0.0.1:9823` | `/opt/network-telemetry/vmanage-exporter/vmanage_exporter.py` |
+| inventory-exporter | `127.0.0.1:9824` and `:9825` | `/opt/network-telemetry/inventory/` |
+| Prometheus | `127.0.0.1:9090` only | `/usr/local/bin/prometheus` |
+| Grafana | `0.0.0.0:3000` | `/usr/sbin/grafana-server` (RPM) |
+
+Prometheus is bound to localhost so it is not exposed to the campus LAN.
+Open **only Grafana 3000** on the firewall (and SSH).
+
+### 0.2 Copy map (every file)
+
+Do this **after** the repo is on the server as `~/Observability` (see 0.3).
+`SRC` means `~/Observability/Network_Telemetry`.
+
+| SRC file | COPY TO | Purpose |
+|----------|---------|---------|
+| entire `Network_Telemetry/` tree | `/opt/network-telemetry/` | Python exporters + dashboard JSON source |
+| `deploy/exporters.env.example` | `/etc/network-telemetry/exporters.env` | API keys and paths (secrets) |
+| `meraki-exporter/sites.json` | `/etc/network-telemetry/sites.json` | Hostname → region/country/site |
+| `meraki-exporter/capacity.yml` | `/etc/network-telemetry/capacity.yml` | Optional WAN CIR |
+| `deploy/prometheus-localhost.yml` | `/etc/prometheus/prometheus.yml` | Scrape `127.0.0.1` exporters |
+| `prometheus/rules/*.yml` | `/etc/prometheus/rules/` | Recording rules + alerts |
+| `deploy/grafana-datasource-localhost.yml` | `/etc/grafana/provisioning/datasources/prometheus.yml` | Grafana → Prometheus on localhost |
+| `grafana/provisioning/dashboards/dashboards.yml` | `/etc/grafana/provisioning/dashboards/dashboards.yml` | Tells Grafana to load JSON files |
+| `grafana/provisioning/dashboards/0*.json` | `/etc/grafana/provisioning/dashboards/` | The four dashboards |
+| `deploy/systemd/*.service` | `/etc/systemd/system/` | Auto-start exporters + Prometheus |
+
+Commands for that table are in **0.6**. Do not skip 0.3–0.5 (packages and users).
+
+### 0.3 Put the code on the server
+
+On your laptop (if git works):
+
+```bash
+git clone https://github.com/Dinesh9821/Observability.git
+cd Observability
+git checkout cursor/network-observability-four-dashboards-d578
+```
+
+Copy to the RHEL host:
+
+```bash
+scp -r Observability user@RHEL_HOST:~/
+```
+
+On the RHEL host:
+
+```bash
+sudo mkdir -p /opt/network-telemetry
+sudo cp -a ~/Observability/Network_Telemetry/. /opt/network-telemetry/
+```
+
+**Purpose:** `/opt/network-telemetry` is the application install. You can delete `~/Observability` later; systemd does not use the home copy.
+
+If you cannot use git, zip the `Network_Telemetry` folder, `scp` the zip, and `unzip` into `/opt/network-telemetry`.
+
+### 0.4 OS packages
+
+```bash
+sudo dnf -y update
+sudo dnf -y install python3 python3-pip python3-devel gcc curl tar firewalld unzip wget
+```
+
+**Purpose:** Python runs the three exporters. `gcc`/`python3-devel` are only needed if pip has to compile a wheel. `firewalld` opens Grafana later.
+
+On RHEL 8, `python3` is 3.6 or 3.9 depending on the box. If `python3 --version` is older than **3.8**, install 3.11 from AppStream:
+
+```bash
+sudo dnf -y module reset python36 || true
+sudo dnf -y install python3.11 python3.11-pip python3.11-devel
+sudo alternatives --set python3 /usr/bin/python3.11 || true
+```
+
+### 0.5 Users and directories
+
+```bash
+sudo useradd --system --home /var/lib/network-telemetry --shell /sbin/nologin telemetry || true
+sudo mkdir -p \
+  /etc/network-telemetry \
+  /var/lib/network-telemetry/inventory \
+  /etc/prometheus/rules \
+  /var/lib/prometheus
+sudo chown -R telemetry:telemetry /opt/network-telemetry /var/lib/network-telemetry /var/lib/prometheus
+sudo chmod 750 /etc/network-telemetry
+```
+
+**Purpose:** exporters run as `telemetry`, not root. Snapshot JSON goes under `/var/lib/network-telemetry/inventory`.
+
+### 0.6 Copy configuration files (run these exactly)
+
+Replace nothing else. Run from any directory.
+
+```bash
+SRC=/opt/network-telemetry
+
+sudo cp $SRC/deploy/exporters.env.example /etc/network-telemetry/exporters.env
+sudo chmod 600 /etc/network-telemetry/exporters.env
+sudo chown root:telemetry /etc/network-telemetry/exporters.env
+
+sudo cp $SRC/meraki-exporter/sites.json /etc/network-telemetry/sites.json
+sudo cp $SRC/meraki-exporter/capacity.yml /etc/network-telemetry/capacity.yml
+sudo chown root:telemetry /etc/network-telemetry/sites.json /etc/network-telemetry/capacity.yml
+sudo chmod 640 /etc/network-telemetry/sites.json /etc/network-telemetry/capacity.yml
+
+sudo cp $SRC/deploy/prometheus-localhost.yml /etc/prometheus/prometheus.yml
+sudo cp $SRC/prometheus/rules/*.yml /etc/prometheus/rules/
+sudo chown -R telemetry:telemetry /etc/prometheus
+
+# Grafana files are copied in section 0.10 after the Grafana RPM creates /etc/grafana.
+
+sudo cp $SRC/deploy/systemd/meraki-exporter.service /etc/systemd/system/
+sudo cp $SRC/deploy/systemd/vmanage-exporter.service /etc/systemd/system/
+sudo cp $SRC/deploy/systemd/inventory-exporter.service /etc/systemd/system/
+sudo cp $SRC/deploy/systemd/prometheus.service /etc/systemd/system/
+```
+
+**Purpose of each `cp`:**
+
+- `exporters.env` — credentials; edit next
+- `sites.json` — site geography for labels
+- `capacity.yml` — contracted circuit speeds (placeholders until you fill real CIR)
+- `prometheus-localhost.yml` — scrape exporters on this same server
+- `rules/*.yml` — health score, WAN rollups, alerts
+- Grafana datasource JSON — dashboards query `http://127.0.0.1:9090`
+- `0*.json` — Full Observability, Inventory, Meraki, SD-WAN
+- `*.service` — systemd unit files
+
+### 0.7 Fill secrets
+
+```bash
+sudo vi /etc/network-telemetry/exporters.env
+```
+
+Set at least:
+
+```
+MERAKI_API_KEY=your_key
+MERAKI_ORG_IDS=org1,org2
+VMANAGE_HOST=vmanage.example.com
+VMANAGE_USER=your_user
+VMANAGE_PASS=your_password
+```
+
+Leave `SITES_FILE` and `INVENTORY_SNAPSHOT_DIR` as in the example (they already match the copy destinations).
+
+### 0.8 Python virtualenv
+
+```bash
+sudo python3 -m venv /opt/network-telemetry/venv
+sudo /opt/network-telemetry/venv/bin/pip install --upgrade pip
+sudo /opt/network-telemetry/venv/bin/pip install -r /opt/network-telemetry/meraki-exporter/requirements.txt
+sudo /opt/network-telemetry/venv/bin/pip install -r /opt/network-telemetry/vmanage-exporter/requirements.txt
+sudo /opt/network-telemetry/venv/bin/pip install -r /opt/network-telemetry/inventory/requirements.txt
+sudo chown -R telemetry:telemetry /opt/network-telemetry/venv
+```
+
+**Purpose:** `pip install` pulls `meraki`, `PyYAML`, `prometheus-client` into `/opt/network-telemetry/venv` so the OS Python stays clean.
+
+If pip cannot reach the internet, download the wheels on a connected machine and `pip install *.whl`.
+
+### 0.9 Install Prometheus (binary)
+
+Prometheus is not in default RHEL repos. On the server (or copy the tarball over):
+
+```bash
+cd /tmp
+VER=2.54.1
+curl -LO https://github.com/prometheus/prometheus/releases/download/v${VER}/prometheus-${VER}.linux-amd64.tar.gz
+tar xzf prometheus-${VER}.linux-amd64.tar.gz
+sudo cp prometheus-${VER}.linux-amd64/prometheus /usr/local/bin/prometheus
+sudo cp prometheus-${VER}.linux-amd64/promtool /usr/local/bin/promtool
+sudo chmod 755 /usr/local/bin/prometheus /usr/local/bin/promtool
+```
+
+**Purpose:** `prometheus` is the TSDB. `promtool` validates config before you start it.
+
+```bash
+sudo /usr/local/bin/promtool check config /etc/prometheus/prometheus.yml
+sudo /usr/local/bin/promtool check rules /etc/prometheus/rules/*.yml
+```
+
+**Purpose:** Fail here if YAML/PromQL is wrong. Do not start Prometheus until both commands print `SUCCESS`.
+
+### 0.10 Install Grafana (RPM)
+
+```bash
+sudo tee /etc/yum.repos.d/grafana.repo >/dev/null <<'EOF'
+[grafana]
+name=grafana
+baseurl=https://rpm.grafana.com
+repo_gpgcheck=1
+enabled=1
+gpgcheck=1
+gpgkey=https://rpm.grafana.com/gpg.key
+sslverify=1
+EOF
+
+sudo dnf -y install grafana
+```
+
+Copy dashboards **after** the RPM so `/etc/grafana` and the `grafana` user exist:
+
+```bash
+SRC=/opt/network-telemetry
+sudo mkdir -p /etc/grafana/provisioning/datasources /etc/grafana/provisioning/dashboards
+sudo cp $SRC/deploy/grafana-datasource-localhost.yml \
+  /etc/grafana/provisioning/datasources/prometheus.yml
+sudo cp $SRC/grafana/provisioning/dashboards/dashboards.yml \
+  /etc/grafana/provisioning/dashboards/dashboards.yml
+sudo cp $SRC/grafana/provisioning/dashboards/0*.json \
+  /etc/grafana/provisioning/dashboards/
+sudo chown -R grafana:grafana /etc/grafana/provisioning
+```
+
+**Purpose:** Grafana must use datasource UID `prometheus` and `url: http://127.0.0.1:9090`. The four `01`–`04` JSON files are the UI.
+
+Set the admin password **before** first start (change `changeme`):
+
+```bash
+sudo grafana-cli admin reset-admin-password changeme
+```
+
+If that command errors because Grafana never ran, start Grafana once, then reset:
+
+```bash
+sudo systemctl enable --now grafana-server
+sudo grafana-cli admin reset-admin-password changeme
+```
+
+**Purpose:** Grafana is the only UI. Default user is `admin`. Change the password immediately.
+
+Grafana RPM already installs `/usr/lib/systemd/system/grafana-server.service`. You do not copy a Grafana unit from this repo.
+
+### 0.11 Firewall and SELinux
+
+```bash
+sudo systemctl enable --now firewalld
+sudo firewall-cmd --permanent --add-service=ssh
+sudo firewall-cmd --permanent --add-port=3000/tcp
+sudo firewall-cmd --reload
+```
+
+**Purpose:** Engineers reach Grafana on TCP 3000. Prometheus and exporters stay on localhost.
+
+If SELinux blocks Grafana reading provisioned JSON:
+
+```bash
+sudo restorecon -Rv /etc/grafana /var/lib/grafana
+```
+
+### 0.12 Start everything
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now meraki-exporter vmanage-exporter inventory-exporter
+sudo systemctl enable --now prometheus
+sudo systemctl enable --now grafana-server
+```
+
+**Purpose:** `enable --now` starts now and on reboot.
+
+```bash
+sudo systemctl status meraki-exporter vmanage-exporter inventory-exporter prometheus grafana-server --no-pager
+```
+
+Expect `active (running)` on all five. If Meraki/vManage fail, `journalctl -u meraki-exporter -e` usually means missing key or bad vManage password — the unit will keep restarting until `.env` is correct.
+
+### 0.13 Verify (expect these results)
+
+```bash
+curl -sf http://127.0.0.1:9822/metrics | grep meraki_exporter_up
+# expect: meraki_exporter_up 1
+
+curl -sf http://127.0.0.1:9823/metrics | grep vmanage_exporter_up
+# expect: vmanage_exporter_up 1
+
+curl -sf http://127.0.0.1:9824/metrics | grep inventory_exporter_up
+# expect: inventory_exporter_up 1
+
+curl -sf http://127.0.0.1:9090/-/ready
+# expect: Prometheus Server is Ready.
+
+curl -sf 'http://127.0.0.1:9090/api/v1/query?query=up' 
+# expect JSON with meraki, vmanage, inventory, prometheus jobs value 1
+```
+
+Browser (from your PC): `http://RHEL_HOST:3000`
+
+- Login `admin` / the password you set
+- Open **1. Full Observability**
+- Confirm variables: Region, Country, Site ID, Device
+- Wait 5–15 minutes after first start for Meraki device/WAN series to appear
+
+Inventory From/To dates appear after the first inventory cycle (Meraki default hourly; vManage default 15 minutes).
+
+### 0.14 Restart / logs / rollback
+
+```bash
+sudo systemctl restart meraki-exporter
+sudo journalctl -u meraki-exporter -f
+```
+
+Same pattern for `vmanage-exporter`, `inventory-exporter`, `prometheus`, `grafana-server`.
+
+Rollback: copy the previous `exporter.py` back to `/opt/network-telemetry/meraki-exporter/` and `systemctl restart meraki-exporter`.
+
 ---
 
 ## 1. Architecture overview
